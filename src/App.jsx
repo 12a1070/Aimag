@@ -1,15 +1,12 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
 function App() {
-  const canvasRef = useRef(null);
-  const [isLandscape, setIsLandscape] = useState(
-    window.innerWidth > window.innerHeight,
-  );
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     const handleResize = () => {
-      setIsLandscape(window.innerWidth > window.innerHeight);
+      setIsMobile(window.innerWidth < 768);
     };
 
     handleResize();
@@ -17,151 +14,69 @@ function App() {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  useEffect(() => {
-    const resizeCanvas = () => {
-      const canvas = canvasRef.current;
-      const parent = canvas?.parentElement;
-
-      if (canvas && parent) {
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
-      }
-    };
-
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
-  }, [isLandscape]);
-
-  const mobileToolbarHeight = 96; // スマホ下部バー全体の高さ
-  const mobileBottomGap = 12; // 下に少し空ける隙間
-
-  const styles = {
-    container: {
-      display: "flex",
-      flexDirection: isLandscape ? "row" : "column",
-      height: "100vh",
-      width: "100vw",
-      backgroundColor: "#E5E5E5",
-      margin: 0,
-      padding: 0,
-      overflow: "hidden",
-    },
-
-    // PCでは左余白、スマホでは不要
-    marginFirst: {
-      display: isLandscape ? "block" : "none",
-      flex: "0 0 15%",
-      backgroundColor: "#D1D1D1",
-    },
-
-    // 残り全部をキャンバスに使う
-    canvasMain: {
-      flex: isLandscape ? "0 0 70%" : "1 1 auto",
-      minHeight: 0,
-      backgroundColor: "#BCBCBC",
-      padding: isLandscape ? "40px 20px" : "12px 12px 0 12px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      overflow: "hidden",
-      boxSizing: "border-box",
-    },
-
-    whitePaper: {
-      width: "100%",
-      height: "100%",
-      backgroundColor: "#FFFFFF",
-      boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-      position: "relative",
-      minHeight: 0,
-    },
-
-    // PCでは右余白、スマホでは下部ツールバーエリア
-    marginSecond: {
-      flex: isLandscape ? "0 0 15%" : `0 0 ${mobileToolbarHeight}px`,
-      backgroundColor: "#D1D1D1",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: isLandscape ? "center" : "flex-start",
-      padding: isLandscape ? "0" : `${mobileBottomGap}px 16px 12px`,
-      boxSizing: "border-box",
-    },
-
-    // PCでは縦、スマホでは横
-    greenBar: {
-      display: "flex",
-      flexDirection: isLandscape ? "column" : "row",
-      backgroundColor: "#00FFAB",
-      padding: isLandscape ? "24px 16px" : "12px 18px",
-      gap: isLandscape ? "32px" : "20px",
-      borderRadius: "8px",
-      boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
-      width: isLandscape ? "auto" : "100%",
-      maxWidth: isLandscape ? "none" : "320px",
-      justifyContent: "space-between",
-      alignItems: "center",
-    },
-
-    canvas: {
-      width: "100%",
-      height: "100%",
-      display: "block",
-      cursor: "crosshair",
-    },
-  };
-
   return (
-    <div style={styles.container}>
-      <div style={styles.marginFirst}></div>
+    <div
+      className={`flex h-[100dvh] w-screen overflow-hidden bg-[#E5E5E5] ${
+        isMobile ? "flex-col" : "flex-row"
+      }`}
+    >
+      {/* PC時のみ左のグレー余白 */}
+      {!isMobile && <div className="w-[15%] shrink-0 bg-[#D1D1D1]" />}
 
-      <div style={styles.canvasMain}>
-        <div style={styles.whitePaper}>
-          <canvas ref={canvasRef} style={styles.canvas} />
+      {/* 中央：白いキャンバス領域（描画ロジックは未実装・見た目のみ） */}
+      <div
+        className={`flex min-h-0 items-center justify-center overflow-hidden bg-[#BCBCBC] ${
+          isMobile
+            ? "flex-1 px-3 pb-0 pt-3"
+            : "min-w-0 flex-[0_0_70%] px-5 py-10"
+        }`}
+      >
+        <div className="relative h-full min-h-0 w-full bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)]">
+          <canvas
+            className="block h-full w-full cursor-crosshair bg-white"
+            aria-label="描画キャンバス（プレースホルダー）"
+          />
           <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              border: "20px solid rgba(0,0,0,0.03)",
-              pointerEvents: "none",
-              boxSizing: "border-box",
-            }}
+            className="pointer-events-none absolute inset-0 box-border border-[20px] border-black/[0.03]"
+            aria-hidden="true"
           />
         </div>
       </div>
 
-      <div style={styles.marginSecond}>
-        <div style={styles.greenBar}>
-          <ToolbarButton icon={<Pencil size={28} />} />
-          <ToolbarButton icon={<Eraser size={28} />} />
-          <ToolbarButton icon={<Layers size={28} />} />
-          <ToolbarButton icon={<Undo2 size={28} />} />
-          <ToolbarButton icon={<PaintBucket size={28} />} />
+      {/* PC時は右ツールバー / スマホ時は下部ツールバー */}
+      <div
+        className={`flex shrink-0 justify-center bg-[#D1D1D1] ${
+          isMobile ? "h-24 items-start px-4 pb-3 pt-3" : "w-[15%] items-center"
+        }`}
+      >
+        <div
+          className={`flex rounded-lg bg-[#00FFAB] shadow-[0_6px_20px_rgba(0,0,0,0.15)] ${
+            isMobile
+              ? "w-full max-w-[320px] items-center justify-between gap-5 px-[18px] py-3"
+              : "flex-col items-center justify-center gap-8 px-4 py-6"
+          }`}
+        >
+          <ToolbarButton icon={<Pencil size={28} />} label="ペン" />
+          <ToolbarButton icon={<Eraser size={28} />} label="消しゴム" />
+          <ToolbarButton icon={<Layers size={28} />} label="レイヤー" />
+          <ToolbarButton icon={<Undo2 size={28} />} label="元に戻す" />
+          <ToolbarButton icon={<PaintBucket size={28} />} label="塗りつぶし" />
         </div>
       </div>
     </div>
   );
 }
 
-const ToolbarButton = ({ icon }) => (
-  <button
-    style={{
-      background: "none",
-      border: "none",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "8px",
-      color: "#000",
-      transition: "transform 0.1s",
-    }}
-    onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.9)")}
-    onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
-    onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
-  >
-    {icon}
-  </button>
-);
+function ToolbarButton({ icon, label }) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      className="flex items-center justify-center rounded-md p-2 text-black transition-transform hover:bg-black/5 active:scale-90"
+    >
+      {icon}
+    </button>
+  );
+}
 
 export default App;
