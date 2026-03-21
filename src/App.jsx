@@ -3,9 +3,8 @@ import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
 function App() {
   const canvasRef = useRef(null);
-  // 画面の「横幅」が「高さ」より大きい場合に Landscape（横長モード）とする
   const [isLandscape, setIsLandscape] = useState(
-    window.innerWidth > window.innerHeight
+    () => window.innerWidth > window.innerHeight
   );
 
   useEffect(() => {
@@ -15,7 +14,6 @@ function App() {
       const canvas = canvasRef.current;
       const parent = canvas?.parentElement;
       if (canvas && parent) {
-        // キャンバスの解像度を親要素に合わせる
         canvas.width = parent.clientWidth;
         canvas.height = parent.clientHeight;
       }
@@ -24,98 +22,77 @@ function App() {
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [isLandscape]);
+  }, []);
 
-  // --- スタイル定義（PCの大画面でも崩れない設定） ---
-  const styles = {
-    container: {
-      display: "flex",
-      // 横長なら横並び(row)、縦長なら縦並び(column)
-      flexDirection: isLandscape ? "row" : "column",
-      height: "100vh",
-      width: "100vw",
-      backgroundColor: "#E5E5E5",
-      margin: 0,
-      padding: 0,
-      overflow: "hidden",
-    },
-    // 【左側】のグレー余白：PCでは幅を広めに取る
-    marginFirst: {
-      flex: isLandscape ? "0 0 15%" : "0 0 10%",
-      backgroundColor: "#D1D1D1",
-    },
-    // 【中央】白いキャンバス：上下に少し余白を作って「横長感」を出す
-    canvasMain: {
-      flex: isLandscape ? "0 0 70%" : "0 0 75%",
-      backgroundColor: "#BCBCBC", // キャンバスの裏側を少し暗く
-      padding: isLandscape ? "40px 20px" : "20px", // 上下に余白を作って横長に見せる
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    whitePaper: {
-      width: "100%",
-      height: "100%",
-      backgroundColor: "#FFFFFF",
-      boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
-      position: "relative",
-    },
-    // 【右側】のグレー余白 ＋ ツールバー
-    marginSecond: {
-      flex: isLandscape ? "0 0 15%" : "0 0 15%",
-      backgroundColor: "#D1D1D1",
-      display: "flex",
-      justifyContent: "center",
-      alignItems: "center",
-    },
-    // 緑のツールバー（アイコンを大きく、間隔を広く）
-    greenBar: {
-      display: "flex",
-      flexDirection: isLandscape ? "column" : "row",
-      backgroundColor: "#00FFAB",
-      padding: "24px 16px", // ツールバー自体を大きく
-      gap: "32px", // アイコン同士の間隔を広く
-      borderRadius: "8px",
-      boxShadow: "0 6px 20px rgba(0,0,0,0.15)",
-    },
-    canvas: {
-      width: "100%",
-      height: "100%",
-      display: "block",
-      cursor: "crosshair",
-    },
-  };
-
+  // ツールバーは「必要な高さ/幅」を確保し、キャンバスが flex で残りを取る（縦で潰れないようにする）
   return (
-    <div style={styles.container}>
-      {/* 1. 左または上の余白 */}
-      <div style={styles.marginFirst}></div>
+    <div
+      className={
+        isLandscape
+          ? "flex h-[100dvh] w-screen flex-row overflow-hidden bg-[#E5E5E5]"
+          : "flex h-[100dvh] w-screen flex-col overflow-hidden bg-[#E5E5E5]"
+      }
+    >
+      {/* 1. 左（横） / 上（縦）のグレー余白 */}
+      <div
+        className={
+          isLandscape
+            ? "w-[15%] shrink-0 bg-[#D1D1D1]"
+            : "h-10 shrink-0 bg-[#D1D1D1]"
+        }
+      />
 
-      {/* 2. 中央のキャンバスエリア */}
-      <div style={styles.canvasMain}>
-        <div style={styles.whitePaper}>
-          <canvas ref={canvasRef} style={styles.canvas} />
-          {/* 内側の装飾枠 */}
+      {/* 2. 中央キャンバス：flex-1 + min-h-0 / min-w-0 でツールバー領域を確保 */}
+      <div
+        className={
+          isLandscape
+            ? "flex min-h-0 min-w-0 flex-[0_0_70%] items-center justify-center bg-[#BCBCBC] px-5 py-10"
+            : "flex min-h-0 min-w-0 flex-1 items-center justify-center bg-[#BCBCBC] p-5"
+        }
+      >
+        <div className="relative h-full w-full bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)]">
+          <canvas
+            ref={canvasRef}
+            className="block h-full w-full cursor-crosshair"
+          />
           <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              border: "20px solid rgba(0,0,0,0.03)",
-              pointerEvents: "none",
-            }}
-          ></div>
+            className="pointer-events-none absolute inset-0 border-[20px] border-black/[0.03]"
+            aria-hidden
+          />
         </div>
       </div>
 
-      {/* 3. 右または下の余白 */}
-      <div style={styles.marginSecond}>
-        <div style={styles.greenBar}>
-          {/* アイコンのサイズを 32 に大きくしました */}
-          <ToolbarButton icon={<Pencil size={32} />} />
-          <ToolbarButton icon={<Eraser size={32} />} />
-          <ToolbarButton icon={<Layers size={32} />} />
-          <ToolbarButton icon={<Undo2 size={32} />} />
-          <ToolbarButton icon={<PaintBucket size={32} />} />
+      {/* 3. 右（横） / 下（縦）：ツールバー — 縦は幅100%・高さは内容に合わせる */}
+      <div
+        className={
+          isLandscape
+            ? "flex w-[15%] shrink-0 items-center justify-center bg-[#D1D1D1]"
+            : "flex w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-2 py-2"
+        }
+      >
+        <div
+          className={
+            isLandscape
+              ? "flex flex-col items-center justify-center gap-6 rounded-lg bg-[#00FFAB] px-4 py-6 shadow-[0_6px_20px_rgba(0,0,0,0.15)]"
+              : "flex max-w-full flex-row flex-wrap items-center justify-center gap-2 rounded-lg bg-[#00FFAB] px-2 py-2 shadow-[0_6px_20px_rgba(0,0,0,0.15)] sm:gap-6 sm:px-4 sm:py-4"
+          }
+        >
+          {/* 狭い画面ではアイコンを小さくして1行に収める */}
+          <ToolbarButton
+            icon={<Pencil className="h-6 w-6 sm:h-8 sm:w-8" />}
+          />
+          <ToolbarButton
+            icon={<Eraser className="h-6 w-6 sm:h-8 sm:w-8" />}
+          />
+          <ToolbarButton
+            icon={<Layers className="h-6 w-6 sm:h-8 sm:w-8" />}
+          />
+          <ToolbarButton
+            icon={<Undo2 className="h-6 w-6 sm:h-8 sm:w-8" />}
+          />
+          <ToolbarButton
+            icon={<PaintBucket className="h-6 w-6 sm:h-8 sm:w-8" />}
+          />
         </div>
       </div>
     </div>
@@ -124,19 +101,8 @@ function App() {
 
 const ToolbarButton = ({ icon }) => (
   <button
-    style={{
-      background: "none",
-      border: "none",
-      cursor: "pointer",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "8px",
-      color: "#000",
-      transition: "transform 0.1s",
-    }}
-    onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.9)")}
-    onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+    type="button"
+    className="flex shrink-0 items-center justify-center rounded-md p-1.5 text-black transition-transform hover:bg-black/5 active:scale-90 sm:p-2"
   >
     {icon}
   </button>
