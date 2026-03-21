@@ -20,10 +20,8 @@ function App() {
         isMobile ? "flex-col" : "flex-row"
       }`}
     >
-      {/* PC時のみ左のグレー余白 */}
       {!isMobile && <div className="w-[15%] shrink-0 bg-[#D1D1D1]" />}
 
-      {/* 中央：白いキャンバス領域（描画ロジックは未実装・見た目のみ） */}
       <div
         className={`flex min-h-0 items-center justify-center overflow-hidden bg-[#BCBCBC] ${
           isMobile
@@ -43,36 +41,69 @@ function App() {
         </div>
       </div>
 
-      {/* PC時は右ツールバー / スマホ時は下部ツールバー */}
       <div
         className={`flex shrink-0 justify-center bg-[#D1D1D1] ${
           isMobile ? "h-24 items-start px-4 pb-3 pt-3" : "w-[15%] items-center"
         }`}
       >
         <div
-          className={`flex rounded-lg bg-[#00FFAB] shadow-[0_6px_20px_rgba(0,0,0,0.15)] ${
+          className={`flex rounded-xl bg-[#00FFAB] shadow-[0_6px_20px_rgba(0,0,0,0.15)] ${
             isMobile
               ? "w-full max-w-[320px] items-center justify-between gap-5 px-[18px] py-3"
-              : "flex-col items-center justify-center gap-8 px-4 py-6"
+              : "w-[112px] flex-col items-center justify-center gap-7 px-4 py-8"
           }`}
         >
-          <ToolbarButton icon={<Pencil size={28} />} label="ペン" />
-          <ToolbarButton icon={<Eraser size={28} />} label="消しゴム" />
-          <ToolbarButton icon={<Layers size={28} />} label="レイヤー" />
-          <ToolbarButton icon={<Undo2 size={28} />} label="元に戻す" />
-          <ToolbarButton icon={<PaintBucket size={28} />} label="塗りつぶし" />
+          <ToolbarButton
+            icon={
+              <Pencil className={isMobile ? "h-7 w-7" : "h-[46px] w-[46px]"} />
+            }
+            label="ペン"
+            isMobile={isMobile}
+          />
+          <ToolbarButton
+            icon={
+              <Eraser className={isMobile ? "h-7 w-7" : "h-[46px] w-[46px]"} />
+            }
+            label="消しゴム"
+            isMobile={isMobile}
+          />
+          <ToolbarButton
+            icon={
+              <Layers className={isMobile ? "h-7 w-7" : "h-[46px] w-[46px]"} />
+            }
+            label="レイヤー"
+            isMobile={isMobile}
+          />
+          <ToolbarButton
+            icon={
+              <Undo2 className={isMobile ? "h-7 w-7" : "h-[46px] w-[46px]"} />
+            }
+            label="元に戻す"
+            isMobile={isMobile}
+          />
+          <ToolbarButton
+            icon={
+              <PaintBucket
+                className={isMobile ? "h-7 w-7" : "h-[46px] w-[46px]"}
+              />
+            }
+            label="塗りつぶし"
+            isMobile={isMobile}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-function ToolbarButton({ icon, label }) {
+function ToolbarButton({ icon, label, isMobile }) {
   return (
     <button
       type="button"
       aria-label={label}
-      className="flex items-center justify-center rounded-md p-2 text-black transition-transform hover:bg-black/5 active:scale-90"
+      className={`flex items-center justify-center rounded-lg text-black transition-transform hover:bg-black/5 active:scale-90 ${
+        isMobile ? "p-2" : "h-16 w-16"
+      }`}
     >
       {icon}
     </button>
