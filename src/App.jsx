@@ -30,9 +30,9 @@ function App() {
         }`}
       >
         <div className="relative h-full min-h-0 w-full bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)]">
-          <canvas
-            className="block h-full w-full cursor-crosshair bg-white"
-            aria-label="描画キャンバス（プレースホルダー）"
+          <div
+            className="h-full w-full bg-white"
+            aria-label="描画エリア（プレースホルダー）"
           />
           <div
             className="pointer-events-none absolute inset-0 box-border border-[20px] border-black/[0.03]"
