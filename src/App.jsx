@@ -1,96 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
 function App() {
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
   return (
-    <div
-      className={`flex h-[100dvh] w-screen overflow-hidden bg-[#E5E5E5] ${
-        isMobile ? "flex-col" : "flex-row"
-      }`}
-    >
-      {!isMobile && <div className="w-[12%] shrink-0 bg-[#D1D1D1]" />}
+    <div className="flex h-[100dvh] w-screen overflow-hidden bg-[#E5E5E5] flex-col md:flex-row">
+      <div className="hidden md:block md:w-[12%] md:shrink-0 md:bg-[#D1D1D1]" />
 
-      <div
-        className={`flex min-h-0 items-center justify-center overflow-hidden bg-[#BCBCBC] ${
-          isMobile
-            ? "flex-1 px-3 pb-0 pt-3"
-            : "min-w-0 flex-[0_0_63%] px-5 py-10"
-        }`}
-      >
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] px-3 pt-3 md:flex-[0_0_63%] md:px-5 md:py-10">
         <div className="relative h-full min-h-0 w-full bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)]">
-          <div
-            className="h-full w-full bg-white"
-            aria-label="描画エリア（プレースホルダー）"
-          />
-          <div
-            className="pointer-events-none absolute inset-0 box-border border-[20px] border-black/[0.03]"
-            aria-hidden="true"
-          />
+          <div className="h-full w-full bg-white" />
+          <div className="pointer-events-none absolute inset-0 box-border border-[20px] border-black/[0.03]" />
         </div>
       </div>
 
-      <div
-        className={`flex shrink-0 justify-center bg-[#D1D1D1] ${
-          isMobile
-            ? "h-24 items-start px-4 pb-3 pt-3"
-            : "w-[25%] items-center justify-center"
-        }`}
-      >
-        <div
-          className={`flex rounded-xl bg-[#00FFAB] shadow-[0_6px_20px_rgba(0,0,0,0.15)] ${
-            isMobile
-              ? "w-full max-w-[320px] items-center justify-between gap-5 px-[18px] py-3"
-              : "w-[168px] flex-col items-center justify-center gap-7 px-6 py-9"
-          }`}
-        >
+      <div className="flex shrink-0 justify-center bg-[#D1D1D1] h-24 items-start px-4 pb-3 pt-3 md:h-auto md:w-[25%] md:items-center">
+        <div className="flex w-full max-w-[320px] items-center justify-between gap-5 rounded-xl bg-[#00FFAB] px-[18px] py-3 shadow-[0_6px_20px_rgba(0,0,0,0.15)] md:w-[168px] md:max-w-none md:flex-col md:gap-7 md:px-6 md:py-9">
           <ToolbarButton
-            icon={
-              <Pencil className={isMobile ? "h-7 w-7" : "h-[52px] w-[52px]"} />
-            }
+            icon={<Pencil className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
             label="ペン"
-            isMobile={isMobile}
           />
           <ToolbarButton
-            icon={
-              <Eraser className={isMobile ? "h-7 w-7" : "h-[52px] w-[52px]"} />
-            }
+            icon={<Eraser className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
             label="消しゴム"
-            isMobile={isMobile}
           />
           <ToolbarButton
-            icon={
-              <Layers className={isMobile ? "h-7 w-7" : "h-[52px] w-[52px]"} />
-            }
+            icon={<Layers className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
             label="レイヤー"
-            isMobile={isMobile}
           />
           <ToolbarButton
-            icon={
-              <Undo2 className={isMobile ? "h-7 w-7" : "h-[52px] w-[52px]"} />
-            }
+            icon={<Undo2 className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
             label="元に戻す"
-            isMobile={isMobile}
           />
           <ToolbarButton
-            icon={
-              <PaintBucket
-                className={isMobile ? "h-7 w-7" : "h-[52px] w-[52px]"}
-              />
-            }
+            icon={<PaintBucket className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
             label="塗りつぶし"
-            isMobile={isMobile}
           />
         </div>
       </div>
@@ -98,14 +41,12 @@ function App() {
   );
 }
 
-function ToolbarButton({ icon, label, isMobile }) {
+function ToolbarButton({ icon, label }) {
   return (
     <button
       type="button"
       aria-label={label}
-      className={`flex items-center justify-center rounded-lg text-black transition-transform hover:bg-black/5 active:scale-90 ${
-        isMobile ? "p-2" : "h-[84px] w-[84px]"
-      }`}
+      className="flex items-center justify-center rounded-lg text-black transition-transform hover:bg-black/5 active:scale-90 p-2 md:h-[84px] md:w-[84px]"
     >
       {icon}
     </button>
