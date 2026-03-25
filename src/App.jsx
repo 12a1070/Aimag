@@ -3,36 +3,49 @@ import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
 function App() {
   return (
-    <div className="flex h-[100dvh] w-screen overflow-hidden bg-[#E5E5E5] flex-col md:flex-row">
-      <div className="hidden md:block md:w-[12%] md:shrink-0 md:bg-[#D1D1D1]" />
+    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] landscape:flex-row">
+      {/* 左パネル：横向き時のみ表示 */}
+      <aside className="hidden shrink-0 bg-[#D1D1D1] landscape:block landscape:w-16 md:landscape:w-20" />
 
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] px-3 pt-3 md:flex-[0_0_63%] md:px-5 md:py-10">
-        <div className="relative h-full min-h-0 w-full bg-white shadow-[0_10px_40px_rgba(0,0,0,0.2)]">
+      {/* キャンバスエリア */}
+      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-3 landscape:p-2">
+        <div className="relative h-full w-full bg-white">
           <div className="h-full w-full bg-white" />
-          <div className="pointer-events-none absolute inset-0 box-border border-[20px] border-black/[0.03]" />
+          <div className="pointer-events-none absolute inset-0 box-border border-4 border-black/5" />
         </div>
-      </div>
+      </main>
 
-      <div className="flex shrink-0 justify-center bg-[#D1D1D1] h-24 items-start px-4 pb-3 pt-3 md:h-auto md:w-[25%] md:items-center">
-        <div className="flex w-full max-w-[320px] items-center justify-between gap-5 rounded-xl bg-[#00FFAB] px-[18px] py-3 shadow-[0_6px_20px_rgba(0,0,0,0.15)] md:w-[168px] md:max-w-none md:flex-col md:gap-7 md:px-6 md:py-9">
+      {/* ツールバー外枠 */}
+      <div className="flex h-24 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-3 py-2 landscape:h-full landscape:w-[84px] landscape:px-1 md:landscape:w-[96px]">
+        <div className="grid h-full w-full max-w-[560px] grid-cols-5 items-center justify-items-center rounded-2xl bg-[#00FFAB] px-3 py-2 shadow-2xl landscape:h-auto landscape:max-h-[88vh] landscape:w-full landscape:grid-cols-1 landscape:gap-1 landscape:px-1 landscape:py-2 md:landscape:gap-2 md:landscape:px-2 md:landscape:py-3">
           <ToolbarButton
-            icon={<Pencil className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
+            icon={
+              <Pencil className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
+            }
             label="ペン"
           />
           <ToolbarButton
-            icon={<Eraser className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
+            icon={
+              <Eraser className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
+            }
             label="消しゴム"
           />
           <ToolbarButton
-            icon={<Layers className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
+            icon={
+              <Layers className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
+            }
             label="レイヤー"
           />
           <ToolbarButton
-            icon={<Undo2 className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
+            icon={
+              <Undo2 className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
+            }
             label="元に戻す"
           />
           <ToolbarButton
-            icon={<PaintBucket className="h-7 w-7 md:h-[52px] md:w-[52px]" />}
+            icon={
+              <PaintBucket className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
+            }
             label="塗りつぶし"
           />
         </div>
@@ -46,7 +59,7 @@ function ToolbarButton({ icon, label }) {
     <button
       type="button"
       aria-label={label}
-      className="flex items-center justify-center rounded-lg text-black transition-transform hover:bg-black/5 active:scale-90 p-2 md:h-[84px] md:w-[84px]"
+      className="flex h-10 w-10 items-center justify-center rounded-xl text-black transition-all hover:bg-black/10 active:scale-90 landscape:h-8 landscape:w-8 md:landscape:h-10 md:landscape:w-10"
     >
       {icon}
     </button>
