@@ -3,40 +3,50 @@ import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
 function App() {
   const canvasRef = useRef(null);
-  const canvasWrapperRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const [toolMode, setToolMode] = useState("pencil");
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    const wrapper = canvasWrapperRef.current;
-    if (!canvas || !wrapper) return;
+    if (!canvas) return;
 
-    const setupCanvasSize = () => {
-      const rect = wrapper.getBoundingClientRect();
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const resizeCanvas = () => {
+      const parent = canvas.parentElement;
+      if (!parent) return;
+
+      const { width, height } = parent.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
 
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      canvas.style.width = `${rect.width}px`;
-      canvas.style.height = `${rect.height}px`;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      canvas.style.width = `${width}px`;
+      canvas.style.height = `${height}px`;
 
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.scale(dpr, dpr);
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.lineWidth = 4;
+      context.strokeStyle = "#111827";
+      context.globalCompositeOperation = "source-over";
     };
 
-    setupCanvasSize();
-    window.addEventListener("resize", setupCanvasSize);
-    return () => window.removeEventListener("resize", setupCanvasSize);
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+
+    return () => {
+      window.removeEventListener("resize", resizeCanvas);
+    };
   }, []);
 
-  const getCanvasPoint = (event) => {
+  const getPointFromEvent = (event) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
+
     const rect = canvas.getBoundingClientRect();
     return {
       x: event.clientX - rect.left,
@@ -44,59 +54,80 @@ function App() {
     };
   };
 
-  const drawLine = (from, to) => {
+  const startDrawing = (event) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    // pointerdown の時点で「描画中フラグ」を true にすることで、
+    // pointermove が発生したときだけ線を引くように制御できます。
+    // これがないと、ただマウスを動かしただけで常に描画されてしまいます。
+    isDrawingRef.current = true;
+
+    const point = getPointFromEvent(event);
+    lastPointRef.current = point;
+
+    // 押した瞬間に点を打つために beginPath -> moveTo -> lineTo を同じ座標で実行。
+    // これにより「クリック/タップだけ」の操作でも小さな点が残ります。
+    context.beginPath();
+    context.moveTo(point.x, point.y);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+  };
+
+  const draw = (event) => {
+    if (!isDrawingRef.current) return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
+
+    const point = getPointFromEvent(event);
+    const lastPoint = lastPointRef.current;
+
+    // なぜマウスを動かすと線が引けるのか:
+    // 1) 前回座標(lastPoint)と今回座標(point)を結ぶ「短い線分」を毎回描く
+    // 2) pointermove は移動中に何度も発火する
+    // 3) 短い線分が連続して並ぶと、人の目には 1 本の連続した線に見える
+    // つまり「移動イベントの連続」+「2点間の線分描画」の組み合わせで手書き線になります。
+    context.beginPath();
+    context.moveTo(lastPoint.x, lastPoint.y);
+    context.lineTo(point.x, point.y);
+    context.stroke();
+
+    lastPointRef.current = point;
+  };
+
+  const stopDrawing = () => {
+    isDrawingRef.current = false;
+  };
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const context = canvas.getContext("2d");
+    if (!context) return;
 
     if (toolMode === "eraser") {
       // 消しゴムの理屈:
-      // destination-out は「新しく描いた線の部分だけ、既存の絵を透明にする」合成モード。
-      // つまり白で上から塗っているのではなく、ピクセル自体を削って消している。
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.lineWidth = 24;
-      ctx.strokeStyle = "rgba(0, 0, 0, 1)";
+      // globalCompositeOperation を "destination-out" にすると、
+      // 新しく描いたストロークが「色を塗る」のではなく「既存ピクセルの透明度を削る」動きになります。
+      // 結果として下地(この画面では白背景)が見えるため、消したように見えます。
+      context.globalCompositeOperation = "destination-out";
+      context.lineWidth = 22;
     } else {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.lineWidth = 4;
-      ctx.strokeStyle = "#111111";
+      // 通常のペンは source-over。
+      // これは「新しい色を既存の上に重ねて描く」標準モードです。
+      context.globalCompositeOperation = "source-over";
+      context.strokeStyle = "#111827";
+      context.lineWidth = 4;
     }
-
-    ctx.beginPath();
-    ctx.moveTo(from.x, from.y);
-    ctx.lineTo(to.x, to.y);
-    ctx.stroke();
-  };
-
-  const handlePointerDown = (event) => {
-    event.preventDefault();
-    const point = getCanvasPoint(event);
-    isDrawingRef.current = true;
-    lastPointRef.current = point;
-    drawLine(point, point);
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-
-  const handlePointerMove = (event) => {
-    if (!isDrawingRef.current) return;
-    event.preventDefault();
-    const currentPoint = getCanvasPoint(event);
-
-    // なぜ「マウスを動かすと線が引ける」のか:
-    // 1) pointerdown で「描画中フラグ」を true にする
-    // 2) pointermove が動くたびに発火する
-    // 3) 前回座標(lastPoint) -> 今回座標(currentPoint)を毎回結ぶ
-    // この処理を高速に繰り返すことで、連続した1本の線に見える。
-    drawLine(lastPointRef.current, currentPoint);
-    lastPointRef.current = currentPoint;
-  };
-
-  const endDrawing = (event) => {
-    if (!isDrawingRef.current) return;
-    isDrawingRef.current = false;
-    event.currentTarget.releasePointerCapture(event.pointerId);
-  };
+  }, [toolMode]);
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] landscape:flex-row">
@@ -105,15 +136,15 @@ function App() {
 
       {/* キャンバスエリア */}
       <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-3 landscape:p-2">
-        <div ref={canvasWrapperRef} className="relative h-full w-full bg-white">
+        <div className="relative h-full w-full bg-white">
           <canvas
             ref={canvasRef}
-            className="h-full w-full touch-none bg-white"
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={endDrawing}
-            onPointerLeave={endDrawing}
-            onPointerCancel={endDrawing}
+            className="h-full w-full bg-white touch-none"
+            onPointerDown={startDrawing}
+            onPointerMove={draw}
+            onPointerUp={stopDrawing}
+            onPointerLeave={stopDrawing}
+            onPointerCancel={stopDrawing}
           />
           <div className="pointer-events-none absolute inset-0 box-border border-4 border-black/5" />
         </div>
@@ -127,16 +158,16 @@ function App() {
               <Pencil className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
             }
             label="ペン"
-            isActive={toolMode === "pencil"}
             onClick={() => setToolMode("pencil")}
+            isActive={toolMode === "pencil"}
           />
           <ToolbarButton
             icon={
               <Eraser className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
             }
             label="消しゴム"
-            isActive={toolMode === "eraser"}
             onClick={() => setToolMode("eraser")}
+            isActive={toolMode === "eraser"}
           />
           <ToolbarButton
             icon={
@@ -169,7 +200,7 @@ function ToolbarButton({ icon, label, onClick, isActive = false }) {
       aria-label={label}
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-xl text-black transition-all active:scale-90 landscape:h-8 landscape:w-8 md:landscape:h-10 md:landscape:w-10 ${
-        isActive ? "bg-black/15" : "hover:bg-black/10"
+        isActive ? "bg-black/20" : "hover:bg-black/10"
       }`}
     >
       {icon}
