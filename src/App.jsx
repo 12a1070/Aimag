@@ -1,6 +1,28 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
+const TOOL_CONFIG = {
+  pencil: {
+    lineWidth: 4,
+    composite: "source-over",
+    strokeStyle: "#111827",
+  },
+  eraser: {
+    lineWidth: 22,
+    composite: "destination-out",
+  },
+};
+
+const applyToolToContext = (context, toolMode) => {
+  const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
+  context.globalCompositeOperation = tool.composite;
+  context.lineWidth = tool.lineWidth;
+
+  if (tool.strokeStyle) {
+    context.strokeStyle = tool.strokeStyle;
+  }
+};
+
 function App() {
   const canvasRef = useRef(null);
   const isDrawingRef = useRef(false);
@@ -30,9 +52,7 @@ function App() {
       context.scale(dpr, dpr);
       context.lineCap = "round";
       context.lineJoin = "round";
-      context.lineWidth = 4;
-      context.strokeStyle = "#111827";
-      context.globalCompositeOperation = "source-over";
+      applyToolToContext(context, "pencil");
     };
 
     resizeCanvas();
@@ -113,20 +133,7 @@ function App() {
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    if (toolMode === "eraser") {
-      // 消しゴムの理屈:
-      // globalCompositeOperation を "destination-out" にすると、
-      // 新しく描いたストロークが「色を塗る」のではなく「既存ピクセルの透明度を削る」動きになります。
-      // 結果として下地(この画面では白背景)が見えるため、消したように見えます。
-      context.globalCompositeOperation = "destination-out";
-      context.lineWidth = 22;
-    } else {
-      // 通常のペンは source-over。
-      // これは「新しい色を既存の上に重ねて描く」標準モードです。
-      context.globalCompositeOperation = "source-over";
-      context.strokeStyle = "#111827";
-      context.lineWidth = 4;
-    }
+    applyToolToContext(context, toolMode);
   }, [toolMode]);
 
   return (
