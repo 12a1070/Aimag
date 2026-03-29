@@ -219,7 +219,7 @@ function App() {
           />
           {isPointerInCanvas && (
             <div
-              className="pointer-events-none absolute rounded-full border border-black/60"
+              className="pointer-events-none absolute rounded-full border-2 border-black/80 bg-black/10"
               style={{
                 width: `${BRUSH_INDICATOR_SIZE}px`,
                 height: `${BRUSH_INDICATOR_SIZE}px`,
