@@ -28,6 +28,8 @@ function App() {
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const [toolMode, setToolMode] = useState("pencil");
+  const toolModeRef = useRef(toolMode);
+  const canvasEverSizedRef = useRef(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -43,6 +45,21 @@ function App() {
       const { width, height } = parent.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
 
+      if (width <= 0 || height <= 0) return;
+
+      let snapshotImageData = null;
+      let snapshotWidth = 0;
+      let snapshotHeight = 0;
+      if (
+        canvasEverSizedRef.current &&
+        canvas.width > 0 &&
+        canvas.height > 0
+      ) {
+        snapshotWidth = canvas.width;
+        snapshotHeight = canvas.height;
+        snapshotImageData = context.getImageData(0, 0, snapshotWidth, snapshotHeight);
+      }
+
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
@@ -50,9 +67,25 @@ function App() {
 
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.scale(dpr, dpr);
+
+      if (snapshotImageData) {
+        const snapshotCanvas = document.createElement("canvas");
+        snapshotCanvas.width = snapshotWidth;
+        snapshotCanvas.height = snapshotHeight;
+        const snapshotContext = snapshotCanvas.getContext("2d");
+        if (snapshotContext) {
+          snapshotContext.putImageData(snapshotImageData, 0, 0);
+          context.imageSmoothingEnabled = false;
+          context.drawImage(snapshotCanvas, 0, 0, width, height);
+          context.imageSmoothingEnabled = true;
+        }
+      }
+
       context.lineCap = "round";
       context.lineJoin = "round";
-      applyToolToContext(context, "pencil");
+      applyToolToContext(context, toolModeRef.current);
+
+      canvasEverSizedRef.current = true;
     };
 
     resizeCanvas();
@@ -133,6 +166,7 @@ function App() {
     const context = canvas.getContext("2d");
     if (!context) return;
 
+    toolModeRef.current = toolMode;
     applyToolToContext(context, toolMode);
   }, [toolMode]);
 
