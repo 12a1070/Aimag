@@ -12,6 +12,7 @@ const TOOL_CONFIG = {
     composite: "destination-out",
   },
 };
+const BRUSH_INDICATOR_SIZE = 20;
 
 const applyToolToContext = (context, toolMode) => {
   const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
@@ -28,6 +29,8 @@ function App() {
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const [toolMode, setToolMode] = useState("pencil");
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
+  const [isPointerInCanvas, setIsPointerInCanvas] = useState(false);
   const toolModeRef = useRef(toolMode);
   const canvasEverSizedRef = useRef(false);
 
@@ -50,14 +53,15 @@ function App() {
       let snapshotImageData = null;
       let snapshotWidth = 0;
       let snapshotHeight = 0;
-      if (
-        canvasEverSizedRef.current &&
-        canvas.width > 0 &&
-        canvas.height > 0
-      ) {
+      if (canvasEverSizedRef.current && canvas.width > 0 && canvas.height > 0) {
         snapshotWidth = canvas.width;
         snapshotHeight = canvas.height;
-        snapshotImageData = context.getImageData(0, 0, snapshotWidth, snapshotHeight);
+        snapshotImageData = context.getImageData(
+          0,
+          0,
+          snapshotWidth,
+          snapshotHeight,
+        );
       }
 
       canvas.width = Math.floor(width * dpr);
@@ -121,6 +125,7 @@ function App() {
 
     const point = getPointFromEvent(event);
     lastPointRef.current = point;
+    setCursorPos(point);
 
     // 押した瞬間に点を打つために beginPath -> moveTo -> lineTo を同じ座標で実行。
     // これにより「クリック/タップだけ」の操作でも小さな点が残ります。
@@ -159,6 +164,30 @@ function App() {
     isDrawingRef.current = false;
   };
 
+  const updateCursorPosition = (event) => {
+    setCursorPos(getPointFromEvent(event));
+  };
+
+  const handlePointerMove = (event) => {
+    updateCursorPosition(event);
+    draw(event);
+  };
+
+  const handlePointerEnter = (event) => {
+    setIsPointerInCanvas(true);
+    updateCursorPosition(event);
+  };
+
+  const handlePointerLeave = () => {
+    setIsPointerInCanvas(false);
+    stopDrawing();
+  };
+
+  const handlePointerCancel = () => {
+    setIsPointerInCanvas(false);
+    stopDrawing();
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -180,13 +209,26 @@ function App() {
         <div className="relative h-full w-full bg-white">
           <canvas
             ref={canvasRef}
-            className="h-full w-full bg-white touch-none"
+            className="h-full w-full cursor-none bg-white touch-none"
             onPointerDown={startDrawing}
-            onPointerMove={draw}
+            onPointerMove={handlePointerMove}
             onPointerUp={stopDrawing}
-            onPointerLeave={stopDrawing}
-            onPointerCancel={stopDrawing}
+            onPointerEnter={handlePointerEnter}
+            onPointerLeave={handlePointerLeave}
+            onPointerCancel={handlePointerCancel}
           />
+          {isPointerInCanvas && (
+            <div
+              className="pointer-events-none absolute rounded-full border border-black/60"
+              style={{
+                width: `${BRUSH_INDICATOR_SIZE}px`,
+                height: `${BRUSH_INDICATOR_SIZE}px`,
+                left: `${cursorPos.x}px`,
+                top: `${cursorPos.y}px`,
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+          )}
           <div className="pointer-events-none absolute inset-0 box-border border-4 border-black/5" />
         </div>
       </main>
