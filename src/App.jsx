@@ -26,6 +26,7 @@ const applyToolToContext = (context, toolMode) => {
 
 function App() {
   const canvasRef = useRef(null);
+  const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const [toolMode, setToolMode] = useState("pencil");
@@ -117,6 +118,7 @@ function App() {
 
     const context = canvas.getContext("2d");
     if (!context) return;
+    ctxRef.current = context;
 
     // pointerdown の時点で「描画中フラグ」を true にすることで、
     // pointermove が発生したときだけ線を引くように制御できます。
