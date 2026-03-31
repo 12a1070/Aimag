@@ -3,7 +3,6 @@ import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
 /**
  * ツールの設定定義
- * 消しゴムは destination-out（描画先を削る）を利用して実現
  */
 const TOOL_CONFIG = {
   pencil: {
@@ -33,13 +32,13 @@ const applyToolToContext = (context, toolMode) => {
 
 function App() {
   const canvasRef = useRef(null);
+  const ctxRef = useRef(null); // Contextを保持する専用のRef
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const [toolMode, setToolMode] = useState("pencil");
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isPointerInCanvas, setIsPointerInCanvas] = useState(false);
 
-  // ReactのState更新を待たずにCanvas操作を行うためのRef管理
   const toolModeRef = useRef(toolMode);
   const canvasEverSizedRef = useRef(false);
 
@@ -50,10 +49,9 @@ function App() {
     const context = canvas.getContext("2d");
     if (!context) return;
 
-    /**
-     * デバイスピクセル比（DPR）を考慮した高解像度対応のリサイズ処理
-     * リサイズ時に既存の描画内容が消失するのを防ぐためスナップショットを保持
-     */
+    // 初回に一度だけContextをRefに保存
+    ctxRef.current = context;
+
     const resizeCanvas = () => {
       const parent = canvas.parentElement;
       if (!parent) return;
@@ -63,7 +61,6 @@ function App() {
 
       if (width <= 0 || height <= 0) return;
 
-      // 既存の描画内容を退避
       let snapshotImageData = null;
       let snapshotWidth = 0;
       let snapshotHeight = 0;
@@ -78,7 +75,6 @@ function App() {
         );
       }
 
-      // バッファサイズと表示サイズの同期
       canvas.width = Math.floor(width * dpr);
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
@@ -87,14 +83,13 @@ function App() {
       context.setTransform(1, 0, 0, 1, 0, 0);
       context.scale(dpr, dpr);
 
-      // 退避したデータをリサイズ後のCanvasへ再描画
       if (snapshotImageData) {
         const snapshotCanvas = document.createElement("canvas");
         snapshotCanvas.width = snapshotWidth;
         snapshotCanvas.height = snapshotHeight;
-        const snapshotContext = snapshotCanvas.getContext("2d");
-        if (snapshotContext) {
-          snapshotContext.putImageData(snapshotImageData, 0, 0);
+        const snapshotCtx = snapshotCanvas.getContext("2d");
+        if (snapshotCtx) {
+          snapshotCtx.putImageData(snapshotImageData, 0, 0);
           context.imageSmoothingEnabled = false;
           context.drawImage(snapshotCanvas, 0, 0, width, height);
           context.imageSmoothingEnabled = true;
@@ -104,37 +99,23 @@ function App() {
       context.lineCap = "round";
       context.lineJoin = "round";
       applyToolToContext(context, toolModeRef.current);
-
       canvasEverSizedRef.current = true;
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
-
-    return () => {
-      window.removeEventListener("resize", resizeCanvas);
-    };
+    return () => window.removeEventListener("resize", resizeCanvas);
   }, []);
 
-  /**
-   * ブラウザの座標をCanvas上の座標に変換
-   */
   const getPointFromEvent = (event) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return { x: 0, y: 0 };
-
-    const rect = canvas.getBoundingClientRect();
-    return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top,
-    };
+    const rect = canvasRef.current?.getBoundingClientRect();
+    return rect
+      ? { x: event.clientX - rect.left, y: event.clientY - rect.top }
+      : { x: 0, y: 0 };
   };
 
   const startDrawing = (event) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const context = canvas.getContext("2d");
+    const context = ctxRef.current;
     if (!context) return;
 
     isDrawingRef.current = true;
@@ -142,7 +123,6 @@ function App() {
     lastPointRef.current = point;
     setCursorPos(point);
 
-    // 単発クリックでの点描画に対応
     context.beginPath();
     context.moveTo(point.x, point.y);
     context.lineTo(point.x, point.y);
@@ -150,18 +130,13 @@ function App() {
   };
 
   const draw = (event) => {
-    if (!isDrawingRef.current) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    const context = ctxRef.current;
+    // 筆がない、または描画中でなければ終了
+    if (!context || !isDrawingRef.current) return;
 
     const point = getPointFromEvent(event);
     const lastPoint = lastPointRef.current;
 
-    // 前回の座標から現在の座標までを短い線分で繋ぎ、手書きの軌跡を再現
     context.beginPath();
     context.moveTo(lastPoint.x, lastPoint.y);
     context.lineTo(point.x, point.y);
@@ -173,44 +148,15 @@ function App() {
   const stopDrawing = () => {
     isDrawingRef.current = false;
   };
-
-  const updateCursorPosition = (event) => {
+  const updateCursorPosition = (event) =>
     setCursorPos(getPointFromEvent(event));
-  };
 
-  const handlePointerMove = (event) => {
-    updateCursorPosition(event);
-    draw(event);
-  };
-
-  const handlePointerEnter = (event) => {
-    setIsPointerInCanvas(true);
-    updateCursorPosition(event);
-  };
-
-  const handlePointerLeave = () => {
-    setIsPointerInCanvas(false);
-    stopDrawing();
-  };
-
-  const handlePointerCancel = () => {
-    setIsPointerInCanvas(false);
-    stopDrawing();
-  };
-
-  /**
-   * ツール切り替え：ReactのState更新とCanvasのコンテキスト設定を一括で行う
-   * 副作用（useEffect）を介さず直接命令を出すことで、処理の透明性を確保
-   */
   const updateTool = (newMode) => {
     setToolMode(newMode);
     toolModeRef.current = newMode;
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const context = canvas.getContext("2d");
-      if (context) {
-        applyToolToContext(context, newMode);
-      }
+    // Refから直接Contextにアクセスして設定を変更
+    if (ctxRef.current) {
+      applyToolToContext(ctxRef.current, newMode);
     }
   };
 
@@ -224,13 +170,24 @@ function App() {
             ref={canvasRef}
             className="h-full w-full cursor-none bg-white touch-none"
             onPointerDown={startDrawing}
-            onPointerMove={handlePointerMove}
+            onPointerMove={(e) => {
+              updateCursorPosition(e);
+              draw(e);
+            }}
             onPointerUp={stopDrawing}
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
-            onPointerCancel={handlePointerCancel}
+            onPointerEnter={(e) => {
+              setIsPointerInCanvas(true);
+              updateCursorPosition(e);
+            }}
+            onPointerLeave={() => {
+              setIsPointerInCanvas(false);
+              stopDrawing();
+            }}
+            onPointerCancel={() => {
+              setIsPointerInCanvas(false);
+              stopDrawing();
+            }}
           />
-          {/* ブラシサイズを可視化するカスタムカーソル */}
           {isPointerInCanvas && (
             <div
               className="pointer-events-none absolute rounded-full border-2 border-black/80 bg-black/10"
@@ -250,39 +207,20 @@ function App() {
       <div className="flex h-24 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-3 py-2 landscape:h-full landscape:w-[84px] landscape:px-1 md:landscape:w-[96px]">
         <div className="grid h-full w-full max-w-[560px] grid-cols-5 items-center justify-items-center rounded-2xl bg-[#00FFAB] px-3 py-2 shadow-2xl landscape:h-auto landscape:max-h-[88vh] landscape:w-full landscape:grid-cols-1 landscape:gap-1 landscape:px-1 landscape:py-2 md:landscape:gap-2 md:landscape:px-2 md:landscape:py-3">
           <ToolbarButton
-            icon={
-              <Pencil className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
-            }
+            icon={<Pencil />}
             label="ペン"
             onClick={() => updateTool("pencil")}
             isActive={toolMode === "pencil"}
           />
           <ToolbarButton
-            icon={
-              <Eraser className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
-            }
+            icon={<Eraser />}
             label="消しゴム"
             onClick={() => updateTool("eraser")}
             isActive={toolMode === "eraser"}
           />
-          <ToolbarButton
-            icon={
-              <Layers className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
-            }
-            label="レイヤー"
-          />
-          <ToolbarButton
-            icon={
-              <Undo2 className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
-            }
-            label="元に戻す"
-          />
-          <ToolbarButton
-            icon={
-              <PaintBucket className="h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7" />
-            }
-            label="塗りつぶし"
-          />
+          <ToolbarButton icon={<Layers />} label="レイヤー" />
+          <ToolbarButton icon={<Undo2 />} label="元に戻す" />
+          <ToolbarButton icon={<PaintBucket />} label="塗りつぶし" />
         </div>
       </div>
     </div>
@@ -299,7 +237,10 @@ function ToolbarButton({ icon, label, onClick, isActive = false }) {
         isActive ? "bg-black/20" : "hover:bg-black/10"
       }`}
     >
-      {icon}
+      {React.cloneElement(icon, {
+        className:
+          "h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7",
+      })}
     </button>
   );
 }
