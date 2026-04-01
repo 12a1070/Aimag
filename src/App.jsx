@@ -172,6 +172,7 @@ function ToolbarButton({ icon, label, onClick, isActive = false }) {
   return (
     <button
       type="button"
+      aria-label={label}
       onClick={onClick}
       className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-90 ${isActive ? "bg-black/20" : "hover:bg-black/10"}`}
     >
