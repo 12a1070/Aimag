@@ -1,38 +1,22 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
-/**
- * ツールの設定定義
- */
 const TOOL_CONFIG = {
-  pencil: {
-    lineWidth: 4,
-    composite: "source-over",
-    strokeStyle: "#111827",
-  },
-  eraser: {
-    lineWidth: 22,
-    composite: "destination-out",
-  },
+  pencil: { lineWidth: 4, composite: "source-over", strokeStyle: "#111827" },
+  eraser: { lineWidth: 22, composite: "destination-out" },
 };
 const BRUSH_INDICATOR_SIZE = 20;
 
-/**
- * CanvasRenderingContext2D に対し、選択中のツール設定を適用する
- */
 const applyToolToContext = (context, toolMode) => {
   const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
   context.globalCompositeOperation = tool.composite;
   context.lineWidth = tool.lineWidth;
-
-  if (tool.strokeStyle) {
-    context.strokeStyle = tool.strokeStyle;
-  }
+  if (tool.strokeStyle) context.strokeStyle = tool.strokeStyle;
 };
 
 function App() {
   const canvasRef = useRef(null);
-  const ctxRef = useRef(null); // Contextを保持する専用のRef
+  const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const [toolMode, setToolMode] = useState("pencil");
@@ -42,70 +26,63 @@ function App() {
   const toolModeRef = useRef(toolMode);
   const canvasEverSizedRef = useRef(false);
 
-  useEffect(() => {
+  // キャンバスの解像度を表示サイズに合わせ、描画内容を維持する
+  const updateCanvasResolution = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const context = canvas.getContext("2d");
-    if (!context) return;
+    const parent = canvas.parentElement;
+    if (!context || !parent) return;
 
-    // 初回に一度だけContextをRefに保存
-    ctxRef.current = context;
+    const { width, height } = parent.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    if (width <= 0 || height <= 0) return;
 
-    const resizeCanvas = () => {
-      const parent = canvas.parentElement;
-      if (!parent) return;
+    // リサイズ前の描画内容を退避
+    let snapshot = null;
+    let sw = canvas.width,
+      sh = canvas.height;
+    if (canvasEverSizedRef.current && sw > 0 && sh > 0) {
+      snapshot = context.getImageData(0, 0, sw, sh);
+    }
 
-      const { width, height } = parent.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+    // 解像度の再設定（ガタツキ防止）
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
 
-      if (width <= 0 || height <= 0) return;
+    context.setTransform(1, 0, 0, 1, 0, 0);
+    context.scale(dpr, dpr);
 
-      let snapshotImageData = null;
-      let snapshotWidth = 0;
-      let snapshotHeight = 0;
-      if (canvasEverSizedRef.current && canvas.width > 0 && canvas.height > 0) {
-        snapshotWidth = canvas.width;
-        snapshotHeight = canvas.height;
-        snapshotImageData = context.getImageData(
-          0,
-          0,
-          snapshotWidth,
-          snapshotHeight,
-        );
+    // 退避した内容を新しいサイズで復元
+    if (snapshot) {
+      const tempCanvas = document.createElement("canvas");
+      tempCanvas.width = sw;
+      tempCanvas.height = sh;
+      const tempCtx = tempCanvas.getContext("2d");
+      if (tempCtx) {
+        tempCtx.putImageData(snapshot, 0, 0);
+        context.imageSmoothingEnabled = false;
+        context.drawImage(tempCanvas, 0, 0, width, height);
+        context.imageSmoothingEnabled = true;
       }
+    }
 
-      canvas.width = Math.floor(width * dpr);
-      canvas.height = Math.floor(height * dpr);
-      canvas.style.width = `${width}px`;
-      canvas.style.height = `${height}px`;
-
-      context.setTransform(1, 0, 0, 1, 0, 0);
-      context.scale(dpr, dpr);
-
-      if (snapshotImageData) {
-        const snapshotCanvas = document.createElement("canvas");
-        snapshotCanvas.width = snapshotWidth;
-        snapshotCanvas.height = snapshotHeight;
-        const snapshotCtx = snapshotCanvas.getContext("2d");
-        if (snapshotCtx) {
-          snapshotCtx.putImageData(snapshotImageData, 0, 0);
-          context.imageSmoothingEnabled = false;
-          context.drawImage(snapshotCanvas, 0, 0, width, height);
-          context.imageSmoothingEnabled = true;
-        }
-      }
-
-      context.lineCap = "round";
-      context.lineJoin = "round";
-      applyToolToContext(context, toolModeRef.current);
-      canvasEverSizedRef.current = true;
-    };
-
-    resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
-    return () => window.removeEventListener("resize", resizeCanvas);
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    applyToolToContext(context, toolModeRef.current);
+    canvasEverSizedRef.current = true;
   }, []);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      ctxRef.current = canvasRef.current.getContext("2d");
+    }
+    updateCanvasResolution();
+    window.addEventListener("resize", updateCanvasResolution);
+    return () => window.removeEventListener("resize", updateCanvasResolution);
+  }, [updateCanvasResolution]);
 
   const getPointFromEvent = (event) => {
     const rect = canvasRef.current?.getBoundingClientRect();
@@ -117,7 +94,6 @@ function App() {
   const startDrawing = (event) => {
     const context = ctxRef.current;
     if (!context) return;
-
     isDrawingRef.current = true;
     const point = getPointFromEvent(event);
     lastPointRef.current = point;
@@ -131,9 +107,7 @@ function App() {
 
   const draw = (event) => {
     const context = ctxRef.current;
-    // 筆がない、または描画中でなければ終了
     if (!context || !isDrawingRef.current) return;
-
     const point = getPointFromEvent(event);
     const lastPoint = lastPointRef.current;
 
@@ -141,7 +115,6 @@ function App() {
     context.moveTo(lastPoint.x, lastPoint.y);
     context.lineTo(point.x, point.y);
     context.stroke();
-
     lastPointRef.current = point;
   };
 
@@ -154,17 +127,13 @@ function App() {
   const updateTool = (newMode) => {
     setToolMode(newMode);
     toolModeRef.current = newMode;
-    // Refから直接Contextにアクセスして設定を変更
-    if (ctxRef.current) {
-      applyToolToContext(ctxRef.current, newMode);
-    }
+    if (ctxRef.current) applyToolToContext(ctxRef.current, newMode);
   };
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] landscape:flex-row">
       <aside className="hidden shrink-0 bg-[#D1D1D1] landscape:block landscape:w-16 md:landscape:w-20" />
-
-      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-3 landscape:p-2">
+      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-1 landscape:p-2">
         <div className="relative h-full w-full bg-white">
           <canvas
             ref={canvasRef}
@@ -203,8 +172,7 @@ function App() {
           <div className="pointer-events-none absolute inset-0 box-border border-4 border-black/5" />
         </div>
       </main>
-
-      <div className="flex h-24 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-3 py-2 landscape:h-full landscape:w-[84px] landscape:px-1 md:landscape:w-[96px]">
+      <div className="flex h-20 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-3 py-2 landscape:h-full landscape:w-[84px] landscape:px-1 md:landscape:w-[96px]">
         <div className="grid h-full w-full max-w-[560px] grid-cols-5 items-center justify-items-center rounded-2xl bg-[#00FFAB] px-3 py-2 shadow-2xl landscape:h-auto landscape:max-h-[88vh] landscape:w-full landscape:grid-cols-1 landscape:gap-1 landscape:px-1 landscape:py-2 md:landscape:gap-2 md:landscape:px-2 md:landscape:py-3">
           <ToolbarButton
             icon={<Pencil />}
