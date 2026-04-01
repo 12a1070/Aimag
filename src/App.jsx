@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
+// 固定解像度(2000px)に合わせて線の太さを調整
 const TOOL_CONFIG = {
-  pencil: { lineWidth: 4, composite: "source-over", strokeStyle: "#111827" },
-  eraser: { lineWidth: 22, composite: "destination-out" },
+  pencil: { lineWidth: 12, composite: "source-over", strokeStyle: "#111827" },
+  eraser: { lineWidth: 80, composite: "destination-out" },
 };
 const BRUSH_INDICATOR_SIZE = 20;
 
@@ -23,72 +24,38 @@ function App() {
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isPointerInCanvas, setIsPointerInCanvas] = useState(false);
 
-  const toolModeRef = useRef(toolMode);
-  const canvasEverSizedRef = useRef(false);
-
-  // キャンバスの解像度を表示サイズに合わせ、描画内容を維持する
-  const updateCanvasResolution = useCallback(() => {
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const context = canvas.getContext("2d");
-    const parent = canvas.parentElement;
-    if (!context || !parent) return;
+    ctxRef.current = context;
 
-    const { width, height } = parent.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    if (width <= 0 || height <= 0) return;
-
-    // リサイズ前の描画内容を退避
-    let snapshot = null;
-    let sw = canvas.width,
-      sh = canvas.height;
-    if (canvasEverSizedRef.current && sw > 0 && sh > 0) {
-      snapshot = context.getImageData(0, 0, sw, sh);
-    }
-
-    // 解像度の再設定（ガタツキ防止）
-    canvas.width = Math.floor(width * dpr);
-    canvas.height = Math.floor(height * dpr);
-    canvas.style.width = `${width}px`;
-    canvas.style.height = `${height}px`;
-
-    context.setTransform(1, 0, 0, 1, 0, 0);
-    context.scale(dpr, dpr);
-
-    // 退避した内容を新しいサイズで復元
-    if (snapshot) {
-      const tempCanvas = document.createElement("canvas");
-      tempCanvas.width = sw;
-      tempCanvas.height = sh;
-      const tempCtx = tempCanvas.getContext("2d");
-      if (tempCtx) {
-        tempCtx.putImageData(snapshot, 0, 0);
-        context.imageSmoothingEnabled = false;
-        context.drawImage(tempCanvas, 0, 0, width, height);
-        context.imageSmoothingEnabled = true;
-      }
-    }
+    // 解像度を2000pxに固定してリサイズによる劣化を防止
+    canvas.width = 2000;
+    canvas.height = 2000;
 
     context.lineCap = "round";
     context.lineJoin = "round";
-    applyToolToContext(context, toolModeRef.current);
-    canvasEverSizedRef.current = true;
+    applyToolToContext(context, "pencil");
   }, []);
 
-  useEffect(() => {
-    if (canvasRef.current) {
-      ctxRef.current = canvasRef.current.getContext("2d");
-    }
-    updateCanvasResolution();
-    window.addEventListener("resize", updateCanvasResolution);
-    return () => window.removeEventListener("resize", updateCanvasResolution);
-  }, [updateCanvasResolution]);
-
+  // 画面上の座標をキャンバス内の固定座標(2000px)に変換
   const getPointFromEvent = (event) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    return rect
-      ? { x: event.clientX - rect.left, y: event.clientY - rect.top }
-      : { x: 0, y: 0 };
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    const displaySize = Math.min(rect.width, rect.height);
+
+    // object-containによる余白(レターボックス)を考慮したオフセット計算
+    const offsetX = (rect.width - displaySize) / 2;
+    const offsetY = (rect.height - displaySize) / 2;
+    const scale = canvas.width / displaySize;
+
+    return {
+      x: (event.clientX - (rect.left + offsetX)) * scale,
+      y: (event.clientY - (rect.top + offsetY)) * scale,
+    };
   };
 
   const startDrawing = (event) => {
@@ -97,7 +64,6 @@ function App() {
     isDrawingRef.current = true;
     const point = getPointFromEvent(event);
     lastPointRef.current = point;
-    setCursorPos(point);
 
     context.beginPath();
     context.moveTo(point.x, point.y);
@@ -121,23 +87,30 @@ function App() {
   const stopDrawing = () => {
     isDrawingRef.current = false;
   };
-  const updateCursorPosition = (event) =>
-    setCursorPos(getPointFromEvent(event));
+
+  const updateCursorPosition = (event) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setCursorPos({
+        x: event.clientX - rect.left,
+        y: event.clientY - rect.top,
+      });
+    }
+  };
 
   const updateTool = (newMode) => {
     setToolMode(newMode);
-    toolModeRef.current = newMode;
     if (ctxRef.current) applyToolToContext(ctxRef.current, newMode);
   };
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] landscape:flex-row">
       <aside className="hidden shrink-0 bg-[#D1D1D1] landscape:block landscape:w-16 md:landscape:w-20" />
-      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-1 landscape:p-2">
-        <div className="relative h-full w-full bg-white">
+      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-0">
+        <div className="relative aspect-square h-full max-h-full w-full max-w-full bg-white shadow-2xl">
           <canvas
             ref={canvasRef}
-            className="h-full w-full cursor-none bg-white touch-none"
+            className="absolute inset-0 h-full w-full object-contain cursor-none touch-none"
             onPointerDown={startDrawing}
             onPointerMove={(e) => {
               updateCursorPosition(e);
@@ -169,9 +142,9 @@ function App() {
               }}
             />
           )}
-          <div className="pointer-events-none absolute inset-0 box-border border-4 border-black/5" />
         </div>
       </main>
+
       <div className="flex h-20 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-3 py-2 landscape:h-full landscape:w-[84px] landscape:px-1 md:landscape:w-[96px]">
         <div className="grid h-full w-full max-w-[560px] grid-cols-5 items-center justify-items-center rounded-2xl bg-[#00FFAB] px-3 py-2 shadow-2xl landscape:h-auto landscape:max-h-[88vh] landscape:w-full landscape:grid-cols-1 landscape:gap-1 landscape:px-1 landscape:py-2 md:landscape:gap-2 md:landscape:px-2 md:landscape:py-3">
           <ToolbarButton
@@ -199,16 +172,10 @@ function ToolbarButton({ icon, label, onClick, isActive = false }) {
   return (
     <button
       type="button"
-      aria-label={label}
       onClick={onClick}
-      className={`flex h-10 w-10 items-center justify-center rounded-xl text-black transition-all active:scale-90 landscape:h-8 landscape:w-8 md:landscape:h-10 md:landscape:w-10 ${
-        isActive ? "bg-black/20" : "hover:bg-black/10"
-      }`}
+      className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-90 ${isActive ? "bg-black/20" : "hover:bg-black/10"}`}
     >
-      {React.cloneElement(icon, {
-        className:
-          "h-8 w-8 landscape:h-6 landscape:w-6 md:landscape:h-7 md:landscape:w-7",
-      })}
+      {React.cloneElement(icon, { className: "h-7 w-7" })}
     </button>
   );
 }
