@@ -1,12 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
-// 固定解像度(2000px)に合わせて線の太さを調整
 const TOOL_CONFIG = {
   pencil: { lineWidth: 12, composite: "source-over", strokeStyle: "#111827" },
   eraser: { lineWidth: 80, composite: "destination-out" },
 };
-const BRUSH_INDICATOR_SIZE = 20;
+const BRUSH_INDICATOR_SIZE = 24; // インジケーターも少し大きく
 
 const applyToolToContext = (context, toolMode) => {
   const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
@@ -17,6 +16,7 @@ const applyToolToContext = (context, toolMode) => {
 
 function App() {
   const canvasRef = useRef(null);
+  const containerRef = useRef(null);
   const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
@@ -26,35 +26,34 @@ function App() {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
+
     const context = canvas.getContext("2d");
     ctxRef.current = context;
 
-    // 解像度を2000pxに固定してリサイズによる劣化を防止
+    // 比率の計算
+    const rect = container.getBoundingClientRect();
+    const ratio = rect.height / rect.width;
+
     canvas.width = 2000;
-    canvas.height = 2000;
+    canvas.height = 2000 * ratio;
 
     context.lineCap = "round";
     context.lineJoin = "round";
     applyToolToContext(context, "pencil");
   }, []);
 
-  // 画面上の座標をキャンバス内の固定座標(2000px)に変換
   const getPointFromEvent = (event) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
-
     const rect = canvas.getBoundingClientRect();
-    const displaySize = Math.min(rect.width, rect.height);
-
-    // object-containによる余白(レターボックス)を考慮したオフセット計算
-    const offsetX = (rect.width - displaySize) / 2;
-    const offsetY = (rect.height - displaySize) / 2;
-    const scale = canvas.width / displaySize;
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
 
     return {
-      x: (event.clientX - (rect.left + offsetX)) * scale,
-      y: (event.clientY - (rect.top + offsetY)) * scale,
+      x: (event.clientX - rect.left) * scaleX,
+      y: (event.clientY - rect.top) * scaleY,
     };
   };
 
@@ -64,7 +63,6 @@ function App() {
     isDrawingRef.current = true;
     const point = getPointFromEvent(event);
     lastPointRef.current = point;
-
     context.beginPath();
     context.moveTo(point.x, point.y);
     context.lineTo(point.x, point.y);
@@ -76,7 +74,6 @@ function App() {
     if (!context || !isDrawingRef.current) return;
     const point = getPointFromEvent(event);
     const lastPoint = lastPointRef.current;
-
     context.beginPath();
     context.moveTo(lastPoint.x, lastPoint.y);
     context.lineTo(point.x, point.y);
@@ -98,19 +95,19 @@ function App() {
     }
   };
 
-  const updateTool = (newMode) => {
-    setToolMode(newMode);
-    if (ctxRef.current) applyToolToContext(ctxRef.current, newMode);
-  };
-
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] landscape:flex-row">
-      <aside className="hidden shrink-0 bg-[#D1D1D1] landscape:block landscape:w-16 md:landscape:w-20" />
-      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#BCBCBC] p-0">
-        <div className="relative aspect-square h-full max-h-full w-full max-w-full bg-white shadow-2xl">
+      <aside className="hidden shrink-0 bg-[#C0C0C0] landscape:block landscape:w-12" />
+
+      {/* メインエリア：p-6に増やして「紙」を浮かせ、ツールバーとの距離を確保 */}
+      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#888888] p-6 md:p-10">
+        <div
+          ref={containerRef}
+          className="relative h-full w-full bg-white shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-all"
+        >
           <canvas
             ref={canvasRef}
-            className="absolute inset-0 h-full w-full object-contain cursor-none touch-none"
+            className="block h-full w-full cursor-none touch-none bg-white"
             onPointerDown={startDrawing}
             onPointerMove={(e) => {
               updateCursorPosition(e);
@@ -145,18 +142,25 @@ function App() {
         </div>
       </main>
 
-      <div className="flex h-20 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-3 py-2 landscape:h-full landscape:w-[84px] landscape:px-1 md:landscape:w-[96px]">
-        <div className="grid h-full w-full max-w-[560px] grid-cols-5 items-center justify-items-center rounded-2xl bg-[#00FFAB] px-3 py-2 shadow-2xl landscape:h-auto landscape:max-h-[88vh] landscape:w-full landscape:grid-cols-1 landscape:gap-1 landscape:px-1 landscape:py-2 md:landscape:gap-2 md:landscape:px-2 md:landscape:py-3">
+      {/* ツールバー：高さを20→24(96px)に、横幅を84→112pxに拡大 */}
+      <div className="flex h-24 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-4 py-3 landscape:h-full landscape:w-28 landscape:px-3">
+        <div className="grid h-full w-full max-w-lg grid-cols-5 items-center justify-items-center rounded-3xl bg-[#00FFAB] shadow-xl landscape:h-auto landscape:max-h-[90vh] landscape:w-full landscape:grid-cols-1 landscape:gap-4 landscape:py-6">
           <ToolbarButton
             icon={<Pencil />}
             label="ペン"
-            onClick={() => updateTool("pencil")}
+            onClick={() => {
+              setToolMode("pencil");
+              applyToolToContext(ctxRef.current, "pencil");
+            }}
             isActive={toolMode === "pencil"}
           />
           <ToolbarButton
             icon={<Eraser />}
             label="消しゴム"
-            onClick={() => updateTool("eraser")}
+            onClick={() => {
+              setToolMode("eraser");
+              applyToolToContext(ctxRef.current, "eraser");
+            }}
             isActive={toolMode === "eraser"}
           />
           <ToolbarButton icon={<Layers />} label="レイヤー" />
@@ -174,9 +178,12 @@ function ToolbarButton({ icon, label, onClick, isActive = false }) {
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={`flex h-10 w-10 items-center justify-center rounded-xl transition-all active:scale-90 ${isActive ? "bg-black/20" : "hover:bg-black/10"}`}
+      className={`flex h-14 w-14 items-center justify-center rounded-2xl transition-all active:scale-95 active:bg-black/30 ${
+        isActive ? "bg-black/25 shadow-inner scale-105" : "hover:bg-black/10"
+      }`}
     >
-      {React.cloneElement(icon, { className: "h-7 w-7" })}
+      {/* アイコンサイズを h-7 -> h-9 にアップ */}
+      {React.cloneElement(icon, { className: "h-9 w-9 stroke-[1.5px]" })}
     </button>
   );
 }
