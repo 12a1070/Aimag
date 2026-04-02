@@ -30,19 +30,22 @@ jobs:
           echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S')" >> LEARNING_LOG.md
           echo "" >> LEARNING_LOG.md
 
-          # 全PR（過去分含む）の番号を取得
           PR_LIST=$(gh pr list --repo 12a1070/Aimag --state all --limit 50 --json number --jq '.[].number')
 
           for num in $PR_LIST; do
-            # jq部分を修正：空のコメント/レビューがあっても( // [] )でエラーを回避するようにしました
+            # jqのロジックを「空っぽ」に対して極めて強くしました
             gh pr view "$num" --repo 12a1070/Aimag --json comments,reviews | \
             jq -r --arg pr_num "$num" '
-              ([(.comments // [])[], ((.reviews // [])[].comments // [])[]]) |
-              if length > 0 then sort_by(.createdAt) else [] end as $all_comments |
-              if ($all_comments | length > 0) and any($all_comments[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search"))))
-              then
-                "## PR #\($pr_num) のやり取り\n" +
-                ([$all_comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
+              [
+                (.comments // [])[],
+                ((.reviews // []) | map(.comments // []) | flatten)[]
+              ] as $all_comments |
+              if ($all_comments | length) > 0 then
+                ($all_comments | sort_by(.createdAt)) as $sorted |
+                if any($sorted[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search")))) then
+                  "## PR #\($pr_num) のやり取り\n" +
+                  ([$sorted[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
+                else empty end
               else empty end
             ' >> LEARNING_LOG.md
           done
