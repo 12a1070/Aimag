@@ -1,0 +1,50 @@
+name: Aggregate Learning Logs
+
+on:
+  workflow_dispatch: # 手動で「実行」ボタンを押せるようにします
+  schedule:
+    - cron: "0 0 * * 5" # 毎週金曜日の深夜に自動実行（指針に合わせて設定）
+
+jobs:
+  aggregate_job:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract conversation logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. 集計用ファイルのヘッダー作成
+          echo "# 学習記録（Mentor Questions & My Answers）" > LEARNING_LOG.md
+          echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S')" >> LEARNING_LOG.md
+          echo "" >> LEARNING_LOG.md
+
+          # 2. PR番号のリストを取得（最新50件）
+          PR_LIST=$(gh pr list --repo 12a1070/Aimag --state all --limit 50 --json number --jq '.[].number')
+
+          for num in $PR_LIST; do
+            # メンター(iineineno03k)のキーワードがあるかチェック
+            check=$(gh pr view $num --repo 12a1070/Aimag --json comments --jq '.comments[] | select(.author.login == "iineineno03k" and (.body | startswith("question") or startswith("search"))) | .body')
+
+            if [ ! -z "$check" ]; then
+              echo "## PR #$num のやり取り" >> LEARNING_LOG.md
+              # PR内の全コメントをMarkdown形式で整形して追記
+              gh pr view $num --repo 12a1070/Aimag --json comments --jq '.comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"' >> LEARNING_LOG.md
+              echo "" >> LEARNING_LOG.md
+            fi
+          done
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add LEARNING_LOG.md
+          # 変更がある場合のみコミット
+          git commit -m "docs: 学習ログを自動更新 [skip ci]" || echo "No changes to commit"
+          git push
