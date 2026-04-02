@@ -23,24 +23,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # 1. 集計用ファイルのヘッダー作成
           echo "# 学習記録（Mentor Questions & My Answers）" > LEARNING_LOG.md
           echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S')" >> LEARNING_LOG.md
           echo "" >> LEARNING_LOG.md
 
-          # 2. PR番号のリストを取得（最新50件）
+          # --state all をつけているので過去分も取得します
           PR_LIST=$(gh pr list --repo 12a1070/Aimag --state all --limit 50 --json number --jq '.[].number')
 
           for num in $PR_LIST; do
-            # メンター(iineineno03k)のキーワードがあるかチェック
-            check=$(gh pr view $num --repo 12a1070/Aimag --json comments --jq '.comments[] | select(.author.login == "iineineno03k" and (.body | startswith("question") or startswith("search"))) | .body')
-
-            if [ ! -z "$check" ]; then
-              echo "## PR #$num のやり取り" >> LEARNING_LOG.md
-              # PR内の全コメントをMarkdown形式で整形して追記
-              gh pr view $num --repo 12a1070/Aimag --json comments --jq '.comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"' >> LEARNING_LOG.md
-              echo "" >> LEARNING_LOG.md
-            fi
+            # 全コメント（全体＋レビュー）を統合してチェック
+            gh pr view $num --repo 12a1070/Aimag --json comments,reviews \
+            --jq '([.comments[], (.reviews // [])[].comments[]]) | sort_by(.createdAt)
+                  as $all_comments |
+                  if any($all_comments[]; .author.login == "iineineno03k" and (.body | contains("question") or contains("search")))
+                  then
+                    "## PR #\(num) のやり取り\n" +
+                    ([$all_comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
+                  else empty end' >> LEARNING_LOG.md
           done
 
       - name: Commit and Push changes
