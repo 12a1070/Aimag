@@ -17,7 +17,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: read
-      issues: read # Issue（#9など）を読み取るために必須
+      issues: read
 
     steps:
       - name: Checkout repository
@@ -33,26 +33,17 @@ jobs:
 
           REPO="12a1070/Aimag"
 
-          # 1. すべてのPR（Merged/Closed含む）の番号を取得
-          # --state all を使うことで、PR #8 などの過去分も確実にリストに入ります
           PR_LIST=$(gh pr list --repo $REPO --state all --limit 100 --json number --jq '.[].number')
-
-          # 2. すべてのIssue（Closed含む）の番号を取得
-          # Issue #9 などのやり取りを拾うために必要です
           ISSUE_LIST=$(gh issue list --repo $REPO --state all --limit 100 --json number --jq '.[].number')
 
-          # ログ抽出用の共通処理
           extract_content() {
-            local type=$1 # "pr" or "issue"
+            local type=$1
             local num=$2
-
-            # PRの場合は reviews（コード上のコメント）も取得対象に含める
             local fields="comments"
             if [ "$type" == "pr" ]; then fields="comments,reviews"; fi
 
             gh $type view "$num" --repo $REPO --json $fields | \
             jq -r --arg num "$num" --arg type "$type" '
-              # コメントとレビューを一つのリストにまとめる（null対策済み）
               [
                 (.comments // [])[],
                 ((.reviews // []) | map(.comments // []) | flatten)[]
@@ -60,9 +51,8 @@ jobs:
 
               if ($all_comments | length) > 0 then
                 ($all_comments | sort_by(.createdAt)) as $sorted |
-                # メンターの投稿かつキーワードを含むかチェック
                 if any($sorted[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search")))) then
-                  "## " + ($type | upcase) + " #" + $num + " のやり取り\n" +
+                  "## " + ($type | ascii_upcase) + " #" + $num + " のやり取り\n" +
                   ([$sorted[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
                 else empty end
               else empty end
@@ -70,11 +60,7 @@ jobs:
           }
 
           echo "--- データの抽出を開始します ---"
-
-          # Issueのスキャン
           for n in $ISSUE_LIST; do extract_content "issue" "$n"; done
-
-          # PRのスキャン
           for n in $PR_LIST; do extract_content "pr" "$n"; done
 
       - name: Commit and Push changes
@@ -82,6 +68,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add LEARNING_LOG.md
-          # 変更がある場合のみコミット
           git commit -m "docs: 過去のPR・Issueを含めてログを完全集計 [skip ci]" || echo "No changes to commit"
           git push origin HEAD:phase3
