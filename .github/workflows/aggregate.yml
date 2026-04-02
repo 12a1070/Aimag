@@ -1,9 +1,12 @@
 name: Aggregate Learning Logs
 
 on:
-  workflow_dispatch: # 手動で「実行」ボタンを押せるようにします
+  push:
+    branches:
+      - phase3 # ← ここを追加
+  workflow_dispatch: # ← そのまま
   schedule:
-    - cron: "0 0 * * 5" # 毎週金曜日の深夜に自動実行（指針に合わせて設定）
+    - cron: "0 0 * * 5" # ← そのまま
 
 jobs:
   aggregate_job:
