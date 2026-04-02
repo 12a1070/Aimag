@@ -34,11 +34,12 @@ jobs:
           PR_LIST=$(gh pr list --repo 12a1070/Aimag --state all --limit 50 --json number --jq '.[].number')
 
           for num in $PR_LIST; do
-            # gh pr view でJSONを出し、パイプ(|)で本物の jq コマンドに渡します
+            # jq部分を修正：空のコメント/レビューがあっても( // [] )でエラーを回避するようにしました
             gh pr view "$num" --repo 12a1070/Aimag --json comments,reviews | \
             jq -r --arg pr_num "$num" '
-              ([.comments[], (.reviews // [])[].comments[]]) | sort_by(.createdAt) as $all_comments |
-              if any($all_comments[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search"))))
+              ([(.comments // [])[], ((.reviews // [])[].comments // [])[]]) |
+              if length > 0 then sort_by(.createdAt) else [] end as $all_comments |
+              if ($all_comments | length > 0) and any($all_comments[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search"))))
               then
                 "## PR #\($pr_num) のやり取り\n" +
                 ([$all_comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
