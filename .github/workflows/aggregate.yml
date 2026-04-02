@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - phase3
-  pull_request: # 未来のPRが作られた時や更新された時も自動で動くように追加
+  pull_request:
     branches:
       - phase3
   workflow_dispatch:
@@ -30,20 +30,20 @@ jobs:
           echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S')" >> LEARNING_LOG.md
           echo "" >> LEARNING_LOG.md
 
-          # すべての状態（open, merged, closed）のPRを取得
+          # 全PR（過去分含む）の番号を取得
           PR_LIST=$(gh pr list --repo 12a1070/Aimag --state all --limit 50 --json number --jq '.[].number')
 
           for num in $PR_LIST; do
-            # --arg を使ってシェル変数をjqに安全に渡します
-            gh pr view "$num" --repo 12a1070/Aimag --json comments,reviews \
-            --arg pr_num "$num" \
-            --jq '([.comments[], (.reviews // [])[].comments[]]) | sort_by(.createdAt)
-                  as $all_comments |
-                  if any($all_comments[]; .author.login == "iineineno03k" and (.body | contains("question") or contains("search")))
-                  then
-                    "## PR #\($pr_num) のやり取り\n" +
-                    ([$all_comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
-                  else empty end' >> LEARNING_LOG.md
+            # gh pr view でJSONを出し、パイプ(|)で本物の jq コマンドに渡します
+            gh pr view "$num" --repo 12a1070/Aimag --json comments,reviews | \
+            jq -r --arg pr_num "$num" '
+              ([.comments[], (.reviews // [])[].comments[]]) | sort_by(.createdAt) as $all_comments |
+              if any($all_comments[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search"))))
+              then
+                "## PR #\($pr_num) のやり取り\n" +
+                ([$all_comments[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
+              else empty end
+            ' >> LEARNING_LOG.md
           done
 
       - name: Commit and Push changes
@@ -51,6 +51,5 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add LEARNING_LOG.md
-          # 変更がある場合のみコミットし、無限ループ防止のため [skip ci] を付与
           git commit -m "docs: 学習ログを自動更新 [skip ci]" || echo "No changes to commit"
           git push origin HEAD:phase3
