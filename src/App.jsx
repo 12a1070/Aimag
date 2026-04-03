@@ -23,9 +23,10 @@ function App() {
     const context = canvas.getContext("2d", { willReadFrequently: true });
     ctxRef.current = context;
 
-    if (canvas.width !== 2500) {
-      canvas.width = 2500;
-      canvas.height = 2500;
+    // 横長を考慮して内部解像度を 3000(横) x 2000(縦) で固定
+    if (canvas.width !== 3000) {
+      canvas.width = 3000;
+      canvas.height = 2000;
       context.lineCap = "round";
       context.lineJoin = "round";
       context.fillStyle = "white";
@@ -33,12 +34,10 @@ function App() {
     }
   }, []);
 
-  // 線の太さを「キャンバス内部の数値」で固定（画面サイズに依存させない）
   const applyToolToContext = (context) => {
     const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
     context.globalCompositeOperation = tool.composite;
-    // 画面の拡大率(scale)を掛けず、直接数値を指定することで回転時の太さ変化を防ぐ
-    context.lineWidth = tool.size;
+    context.lineWidth = tool.size; // 内部解像度に対して固定
     if (tool.strokeStyle) context.strokeStyle = tool.strokeStyle;
   };
 
@@ -59,25 +58,21 @@ function App() {
     const context = ctxRef.current;
     if (!context || !canvas) return;
 
-    // タッチパッドのクリックを確実に捕捉
     canvas.setPointerCapture(event.pointerId);
-
     applyToolToContext(context);
     isDrawingRef.current = true;
     const point = getPointFromEvent(event);
     lastPointRef.current = point;
 
-    // 点を描画するための処理
     context.beginPath();
     context.moveTo(point.x, point.y);
-    context.lineTo(point.x, point.y); // 同じ位置に線を引くことで「点」にする
+    context.lineTo(point.x, point.y);
     context.stroke();
   };
 
   const draw = (event) => {
     const context = ctxRef.current;
     if (!context || !isDrawingRef.current) return;
-
     const point = getPointFromEvent(event);
     const lastPoint = lastPointRef.current;
 
@@ -107,10 +102,14 @@ function App() {
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
+      {/* メインエリア */}
       <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#777777] p-2 sm:p-6 md:p-10">
         <div
           ref={containerRef}
-          className="relative aspect-square h-full max-h-full max-w-full bg-white shadow-2xl"
+          className="relative h-full w-full bg-white shadow-2xl
+            /* 縦向きは正方形、横向きは親要素いっぱい(w-full h-full) */
+            portrait:aspect-square portrait:h-auto portrait:w-full
+            landscape:w-full landscape:h-full"
         >
           <canvas
             ref={canvasRef}
@@ -121,22 +120,15 @@ function App() {
               draw(e);
             }}
             onPointerUp={stopDrawing}
-            onPointerEnter={(e) => {
-              setIsPointerInCanvas(true);
-              updateCursorPosition(e);
-            }}
-            onPointerLeave={(e) => {
-              setIsPointerInCanvas(false);
-              // ここではstopDrawingを呼ばない（キャプチャしているため枠外でも描けるようにする）
-            }}
+            onPointerEnter={() => setIsPointerInCanvas(true)}
+            onPointerLeave={() => setIsPointerInCanvas(false)}
           />
           {isPointerInCanvas && (
             <div
               className="pointer-events-none absolute rounded-full border-[2px] border-black/40 bg-white/20 mix-blend-difference"
               style={{
-                // 画面上のカーソルサイズは見た目の比率に合わせる
-                width: `${TOOL_CONFIG[toolMode].size * (containerRef.current?.offsetWidth / 2500)}px`,
-                height: `${TOOL_CONFIG[toolMode].size * (containerRef.current?.offsetWidth / 2500)}px`,
+                width: `${TOOL_CONFIG[toolMode].size * (containerRef.current?.offsetWidth / 3000)}px`,
+                height: `${TOOL_CONFIG[toolMode].size * (containerRef.current?.offsetWidth / 3000)}px`,
                 left: `${cursorPos.x}px`,
                 top: `${cursorPos.y}px`,
                 transform: "translate(-50%, -50%)",
@@ -146,6 +138,7 @@ function App() {
         </div>
       </main>
 
+      {/* ツールバー */}
       <div className="flex shrink-0 items-center justify-center bg-[#D1D1D1] h-24 w-full px-2 py-1 landscape:h-full landscape:w-28 landscape:px-2 md:h-full md:w-32 md:px-4">
         <div className="flex h-full w-full max-w-md items-center justify-around rounded-[1.5rem] bg-[#00FFAB] p-2 shadow-xl landscape:h-[90vh] landscape:flex-col landscape:justify-evenly md:h-[85vh] md:flex-col md:justify-evenly">
           <ToolbarButton
