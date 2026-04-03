@@ -16,6 +16,7 @@ function App() {
   const [toolMode, setToolMode] = useState("pencil");
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isPointerInCanvas, setIsPointerInCanvas] = useState(false);
+  const [cursorScale, setCursorScale] = useState(1);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -91,8 +92,13 @@ function App() {
   };
 
   const updateCursorPosition = (event) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) {
+    const canvas = canvasRef.current;
+    const rect = canvas?.getBoundingClientRect();
+    if (rect && canvas) {
+      const nextScale = rect.width / canvas.width;
+      setCursorScale((prev) =>
+        Math.abs(prev - nextScale) < 0.001 ? prev : nextScale,
+      );
       setCursorPos({
         x: event.clientX - rect.left,
         y: event.clientY - rect.top,
@@ -125,10 +131,10 @@ function App() {
           />
           {isPointerInCanvas && (
             <div
-              className="pointer-events-none absolute rounded-full border-[2px] border-black/40 bg-white/20 mix-blend-difference"
+              className="pointer-events-none absolute rounded-full border-2 border-black/40 bg-white/20 mix-blend-difference"
               style={{
-                width: `${TOOL_CONFIG[toolMode].size * (containerRef.current?.offsetWidth / 3000)}px`,
-                height: `${TOOL_CONFIG[toolMode].size * (containerRef.current?.offsetWidth / 3000)}px`,
+                width: `${TOOL_CONFIG[toolMode].size * cursorScale}px`,
+                height: `${TOOL_CONFIG[toolMode].size * cursorScale}px`,
                 left: `${cursorPos.x}px`,
                 top: `${cursorPos.y}px`,
                 transform: "translate(-50%, -50%)",
@@ -140,7 +146,7 @@ function App() {
 
       {/* ツールバー */}
       <div className="flex shrink-0 items-center justify-center bg-[#D1D1D1] h-24 w-full px-2 py-1 landscape:h-full landscape:w-28 landscape:px-2 md:h-full md:w-32 md:px-4">
-        <div className="flex h-full w-full max-w-md items-center justify-around rounded-[1.5rem] bg-[#00FFAB] p-2 shadow-xl landscape:h-[90vh] landscape:flex-col landscape:justify-evenly md:h-[85vh] md:flex-col md:justify-evenly">
+        <div className="flex h-full w-full max-w-md items-center justify-around rounded-3xl bg-[#00FFAB] p-2 shadow-xl landscape:h-[90vh] landscape:flex-col landscape:justify-evenly md:h-[85vh] md:flex-col md:justify-evenly">
           <ToolbarButton
             icon={<Pencil />}
             onClick={() => setToolMode("pencil")}
