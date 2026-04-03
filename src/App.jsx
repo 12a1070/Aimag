@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Pencil, Eraser, Layers, Undo2, PaintBucket } from "lucide-react";
 
-// 表示上のサイズ（CSSピクセル）を定義
 const TOOL_CONFIG = {
   pencil: { size: 16, composite: "source-over", strokeStyle: "#111827" },
-  eraser: { size: 60, composite: "destination-out" }, // 消しゴムを大きく設定
+  eraser: { size: 60, composite: "destination-out" },
 };
 
 function App() {
@@ -24,31 +23,21 @@ function App() {
     if (!canvas || !container) return;
     const context = canvas.getContext("2d");
     ctxRef.current = context;
-
     const rect = container.getBoundingClientRect();
     const ratio = rect.height / rect.width;
-
-    // 高解像度設定
     canvas.width = 2000;
     canvas.height = 2000 * ratio;
-
     context.lineCap = "round";
     context.lineJoin = "round";
   }, []);
 
-  // 描画ツールを適用（現在のCanvas表示サイズに合わせてlineWidthを動的に計算）
   const applyToolToContext = (context) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-
     const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
     const rect = canvas.getBoundingClientRect();
-
-    // 論理サイズ(2000) / 表示サイズ(rect.width) = 1ピクセルあたりのCanvas内部比率
     const scale = canvas.width / rect.width;
-
     context.globalCompositeOperation = tool.composite;
-    // 表示サイズ(tool.size)に比率(scale)を掛けることで、見た目通りの太さにする
     context.lineWidth = tool.size * scale;
     if (tool.strokeStyle) context.strokeStyle = tool.strokeStyle;
   };
@@ -68,13 +57,10 @@ function App() {
   const startDrawing = (event) => {
     const context = ctxRef.current;
     if (!context) return;
-
-    applyToolToContext(context); // 描画開始時に最新のスケールで太さを適用
-
+    applyToolToContext(context);
     isDrawingRef.current = true;
     const point = getPointFromEvent(event);
     lastPointRef.current = point;
-
     context.beginPath();
     context.moveTo(point.x, point.y);
     context.lineTo(point.x, point.y);
@@ -86,7 +72,6 @@ function App() {
     if (!context || !isDrawingRef.current) return;
     const point = getPointFromEvent(event);
     const lastPoint = lastPointRef.current;
-
     context.beginPath();
     context.moveTo(lastPoint.x, lastPoint.y);
     context.lineTo(point.x, point.y);
@@ -114,10 +99,10 @@ function App() {
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] landscape:flex-row">
       <aside className="hidden shrink-0 bg-[#C0C0C0] landscape:block landscape:w-4" />
 
-      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center landscape:justify-start overflow-hidden bg-[#777777] p-8 md:p-12 lg:p-16">
+      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#777777] p-4 md:p-12 landscape:justify-start">
         <div
           ref={containerRef}
-          className="relative h-full w-full max-w-[95%] landscape:max-w-[90%] bg-white shadow-[0_40px_80px_rgba(0,0,0,0.5)]"
+          className="relative h-full w-full max-w-[95%] bg-white shadow-[0_40px_80px_rgba(0,0,0,0.5)] landscape:max-w-[92%]"
         >
           <canvas
             ref={canvasRef}
@@ -156,8 +141,9 @@ function App() {
         </div>
       </main>
 
-      <div className="flex h-40 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-8 py-6 landscape:h-full landscape:w-44 landscape:px-6">
-        <div className="grid h-full w-full max-w-2xl grid-cols-5 items-center justify-items-center rounded-[3rem] bg-[#00FFAB] shadow-2xl landscape:h-auto landscape:max-h-[92vh] landscape:grid-cols-1 landscape:gap-8 landscape:py-12">
+      {/* ツールバーのコンテナ */}
+      <div className="flex h-32 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-4 py-2 landscape:h-full landscape:w-40 landscape:px-2">
+        <div className="grid w-full max-w-2xl grid-cols-5 items-center justify-items-center gap-2 rounded-[2rem] bg-[#00FFAB] p-2 shadow-2xl landscape:h-auto landscape:max-h-[95vh] landscape:grid-cols-2 landscape:gap-3 landscape:rounded-[1.5rem] landscape:p-3">
           <ToolbarButton
             icon={<Pencil />}
             label="ペン"
@@ -185,13 +171,16 @@ function ToolbarButton({ icon, label, onClick, isActive = false }) {
       type="button"
       aria-label={label}
       onClick={onClick}
-      className={`flex h-20 w-20 items-center justify-center rounded-[1.5rem] transition-all active:scale-95 ${
+      className={`flex h-14 w-14 items-center justify-center rounded-xl transition-all active:scale-95 sm:h-16 sm:w-16 landscape:h-14 landscape:w-14 desktop:h-20 desktop:w-20 ${
         isActive
-          ? "bg-black/35 shadow-2xl scale-110 ring-4 ring-black/10"
+          ? "bg-black/35 shadow-lg scale-110 ring-2 ring-black/10"
           : "hover:bg-black/10"
       }`}
     >
-      {React.cloneElement(icon, { className: "h-14 w-14", strokeWidth: 2.8 })}
+      {React.cloneElement(icon, {
+        className: "h-8 w-8 sm:h-10 sm:w-10 landscape:h-8 landscape:w-8",
+        strokeWidth: 2.5,
+      })}
     </button>
   );
 }
