@@ -2,11 +2,12 @@ name: Aggregate Learning Logs
 
 on:
   push:
+    # phase3, phase4... 全てのphaseブランチで動作するように変更
     branches:
-      - phase3
+      - "phase*"
   pull_request:
     branches:
-      - phase3
+      - "phase*"
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * 5"
@@ -27,46 +28,42 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "# 学習記録（Mentor Questions & My Answers）" > LEARNING_LOG.md
+          echo "# 💡 学習記録・メンターフィードバック一覧" > LEARNING_LOG.md
           echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S') (JST)" >> LEARNING_LOG.md
+          echo "このファイルは GitHub Actions により全PR/Issueから自動集計されています。" >> LEARNING_LOG.md
           echo "" >> LEARNING_LOG.md
 
           REPO="12a1070/Aimag"
+          MENTOR="iineineno03k"
 
+          # 過去全てのPR番号を取得
           PR_LIST=$(gh pr list --repo $REPO --state all --limit 100 --json number --jq '.[].number')
-          ISSUE_LIST=$(gh issue list --repo $REPO --state all --limit 100 --json number --jq '.[].number')
 
-          extract_content() {
-            local type=$1
-            local num=$2
-            local fields="comments"
-            if [ "$type" == "pr" ]; then fields="comments,reviews"; fi
+          echo "--- 抽出開始 ---"
 
-            gh $type view "$num" --repo $REPO --json $fields | \
-            jq -r --arg num "$num" --arg type "$type" '
+          for num in $PR_LIST; do
+            echo "Checking PR #$num..."
+            # 稲田さんの「question」「search」を含む発言だけをピンポイントで抽出
+            gh pr view "$num" --repo $REPO --json url,title,comments,reviews | \
+            jq -r --arg mentor "$MENTOR" --arg num "$num" '
               [
                 (.comments // [])[],
                 ((.reviews // []) | map(.comments // []) | flatten)[]
-              ] as $all_comments |
-
-              if ($all_comments | length) > 0 then
-                ($all_comments | sort_by(.createdAt)) as $sorted |
-                if any($sorted[]; .author.login == "iineineno03k" and (.body | (contains("question") or contains("search")))) then
-                  "## " + ($type | ascii_upcase) + " #" + $num + " のやり取り\n" +
-                  ([$sorted[] | "### \(.author.login) (\(.createdAt))\n\(.body)\n\n---"] | join("\n")) + "\n"
-                else empty end
+              ] |
+              map(select(.author.login == $mentor and (.body | (contains("question") or contains("search"))))) |
+              if length > 0 then
+                "## [PR #\($num)](\(.url)): \(.title)\n" +
+                (map("* **日付**: \(.createdAt)\n  **内容**:\n> \(.body | gsub("\n"; "\n> "))\n") | join("\n"))
               else empty end
             ' >> LEARNING_LOG.md
-          }
-
-          echo "--- データの抽出を開始します ---"
-          for n in $ISSUE_LIST; do extract_content "issue" "$n"; done
-          for n in $PR_LIST; do extract_content "pr" "$n"; done
+          done
 
       - name: Commit and Push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add LEARNING_LOG.md
-          git commit -m "docs: 過去のPR・Issueを含めてログを完全集計 [skip ci]" || echo "No changes to commit"
-          git push origin HEAD:phase3
+          # コミットメッセージも汎用的に
+          git commit -m "docs: メンターのフィードバックを最新状態に更新 [skip ci]" || echo "No changes to commit"
+          # HEAD: は、現在のアクションが動いているブランチ（phase3やphase4など）へ自動でプッシュします
+          git push origin HEAD
