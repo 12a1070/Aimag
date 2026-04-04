@@ -2,7 +2,7 @@ name: Aggregate Learning Logs
 
 on:
   push:
-    # phase3, phase4... 全てのphaseブランチで動作するように変更
+    # phase3, phase4... 全てのphaseブランチで動作するようにワイルドカード指定
     branches:
       - "phase*"
   pull_request:
@@ -30,30 +30,33 @@ jobs:
         run: |
           echo "# 💡 学習記録・メンターフィードバック一覧" > LEARNING_LOG.md
           echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S') (JST)" >> LEARNING_LOG.md
-          echo "このファイルは GitHub Actions により全PR/Issueから自動集計されています。" >> LEARNING_LOG.md
+          echo "このファイルは GitHub Actions により全PRから自動集計されています。" >> LEARNING_LOG.md
           echo "" >> LEARNING_LOG.md
 
           REPO="12a1070/Aimag"
           MENTOR="iineineno03k"
 
-          # 過去全てのPR番号を取得
+          # 過去全てのPR番号を取得（limitは必要に応じて調整してください）
           PR_LIST=$(gh pr list --repo $REPO --state all --limit 100 --json number --jq '.[].number')
 
           echo "--- 抽出開始 ---"
 
           for num in $PR_LIST; do
             echo "Checking PR #$num..."
-            # 稲田さんの「question」「search」を含む発言だけをピンポイントで抽出
+
+            # PRのタイトル・URL・コメント・レビューを一括取得
             gh pr view "$num" --repo $REPO --json url,title,comments,reviews | \
             jq -r --arg mentor "$MENTOR" --arg num "$num" '
-              [
+              # 1. メンターの対象コメントだけを抽出して変数 $filtered_comments に格納
+              ([
                 (.comments // [])[],
                 ((.reviews // []) | map(.comments // []) | flatten)[]
-              ] |
-              map(select(.author.login == $mentor and (.body | (contains("question") or contains("search"))))) |
-              if length > 0 then
+              ] | map(select(.author.login == $mentor and (.body | (contains("question") or contains("search")))))) as $filtered_comments |
+
+              # 2. 対象コメントがある場合のみ、PRのタイトル・URLと共に出力（ここでエラーを回避）
+              if ($filtered_comments | length > 0) then
                 "## [PR #\($num)](\(.url)): \(.title)\n" +
-                (map("* **日付**: \(.createdAt)\n  **内容**:\n> \(.body | gsub("\n"; "\n> "))\n") | join("\n"))
+                ($filtered_comments | map("* **日付**: \(.createdAt)\n  **内容**:\n> \(.body | gsub("\n"; "\n> "))\n") | join("\n"))
               else empty end
             ' >> LEARNING_LOG.md
           done
@@ -63,7 +66,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add LEARNING_LOG.md
-          # コミットメッセージも汎用的に
-          git commit -m "docs: メンターのフィードバックを最新状態に更新 [skip ci]" || echo "No changes to commit"
-          # HEAD: は、現在のアクションが動いているブランチ（phase3やphase4など）へ自動でプッシュします
+          # 変更がない場合にエラーにならないよう || echo を活用
+          git commit -m "docs: メンターのフィードバック(question/search)を最新状態に更新 [skip ci]" || echo "No changes to commit"
+          # 実行中のカレントブランチ（phase3など）へプッシュ
           git push origin HEAD
