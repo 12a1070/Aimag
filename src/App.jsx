@@ -26,9 +26,11 @@ function App() {
     if (!context) return;
     ctxRef.current = context;
 
-    if (canvas.width !== 3000) {
-      canvas.width = 3000;
-      canvas.height = 2000;
+    // 修正ポイント: 3000x2000 (3:2) ではなく、16:9 の比率にする
+    // 例: 横3200px なら 縦は 1800px
+    if (canvas.width !== 3200) {
+      canvas.width = 3200;
+      canvas.height = 1800;
       context.lineCap = "round";
       context.lineJoin = "round";
       context.fillStyle = "white";
@@ -115,10 +117,11 @@ function App() {
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
-      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#777777] p-2 sm:p-6 md:p-10">
+      <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#777777] p-2 sm:p-6">
+        {/* 修正ポイント: 縦横問わず aspect-video (16:9) を指定し、親要素からはみ出さないように設定 */}
         <div
           ref={containerRef}
-          className="relative h-full w-full bg-white shadow-2xl portrait:aspect-square portrait:h-auto portrait:w-full landscape:w-full landscape:h-full"
+          className="relative aspect-video max-w-full max-h-full bg-white shadow-2xl"
         >
           <canvas
             ref={canvasRef}
@@ -131,11 +134,13 @@ function App() {
             onPointerUp={stopDrawing}
             onPointerEnter={(e) => {
               setIsPointerInCanvas(true);
-              updateCursorPosition(e); // 入った瞬間の位置を同期
+              updateCursorPosition(e);
             }}
             onPointerLeave={() => setIsPointerInCanvas(false)}
             onPointerCancel={stopDrawing}
           />
+
+          {/* カーソル表示 */}
           {isPointerInCanvas && (
             <div
               className="pointer-events-none absolute rounded-full border-2 border-black/40 bg-white/20 mix-blend-difference"
