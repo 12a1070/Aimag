@@ -47,17 +47,20 @@ jobs:
             # 3. jqのフィルタを強化（大文字小文字無視・日本語対応・改行の修正）
             gh pr view "$num" --repo $REPO --json url,title,comments,reviews | \
             jq -r --arg mentor "$MENTOR" --arg num "$num" '
-              # すべてのコメントとレビュー内コメントをフラットに結合
+              # 全てのソースをマージ（1. 全体コメント, 2. 行別コメント, 3. レビュー総評）
               ([
                 (.comments // [])[],
-                ((.reviews // []) | map(.comments // []) | flatten)[]
+                ((.reviews // []) | map(.comments // []) | flatten)[],
+                (.reviews // [])[].body | {body: ., author: {login: "unknown"}, createdAt: "unknown"} # 総評を追加
               ]
-              # メンターの発言 かつ 特定キーワード（大文字小文字無視 / 日本語対応）を含むものを抽出
-              | map(select(.author.login == $mentor and (.body | test("question|search|質問|調べ|確認|課題"; "i"))))) as $filtered
+              # メンターの発言（または作者不明の総評）かつ「タスクらしい」書き方のものを抽出
+              | map(select((.author.login == $mentor or .author.login == "unknown") and
+                  (.body | test("(^|\\n)(### |\\*\\*|# )?(question|search|質問|課題|調べ)[:：]"; "i"))))
+              ) as $filtered
 
               | if ($filtered | length > 0) then
                   "## [PR #\($num)](\(.url)): \(.title)\n\n" +
-                  ($filtered | map("### 💬 フィードバック (\(.createdAt))\n\n> \(.body | gsub("\n"; "\n> "))\n\n---\n") | join("\n\n"))
+                  ($filtered | map("### 💬 フィードバック\n\n> \(.body | gsub("\n"; "\n> "))\n\n---\n") | join("\n\n"))
                 else empty end
             ' >> LEARNING_LOG.md
           done
