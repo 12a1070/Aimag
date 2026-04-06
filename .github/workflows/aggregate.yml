@@ -44,19 +44,24 @@ jobs:
           for num in $PR_LIST; do
             echo "Processing PR #$num..."
 
-            # 3. jqのフィルタを強化（大文字小文字無視・日本語対応・改行の修正）
+            # 3. jqフィルタの堅牢化（型チェックの追加）
             gh pr view "$num" --repo $REPO --json url,title,comments,reviews | \
             jq -r --arg mentor "$MENTOR" --arg num "$num" '
-              # 全てのソースをマージ（1. 全体コメント, 2. 行別コメント, 3. レビュー総評）
+              # すべてのソース（通常コメント、レビューコメント、レビュー総評）を1つの配列にまとめる
               ([
-                (.comments // [])[],
-                ((.reviews // []) | map(.comments // []) | flatten)[],
-                (.reviews // [])[].body | {body: ., author: {login: "unknown"}, createdAt: "unknown"} # 総評を追加
-              ]
-              # メンターの発言（または作者不明の総評）かつ「タスクらしい」書き方のものを抽出
-              | map(select((.author.login == $mentor or .author.login == "unknown") and
-                  (.body | test("(^|\\n)(### |\\*\\*|# )?(question|search|質問|課題|調べ)[:：]"; "i"))))
-              ) as $filtered
+                (.comments // []),
+                ([(.reviews // [])[].comments // []] | flatten),
+                ([.reviews // [] | .[] | select(.body != null and .body != "") | {body: .body, author: .author, createdAt: .createdAt}])
+              ] | flatten)
+
+              # フィルタリング
+              | map(select(
+                  # メンターの発言であること
+                  (.author.login == $mentor or .author.login == "unknown") and
+                  # bodyが文字列であり、かつ特定のキーワードで見出し形式になっていること
+                  (.body | type == "string") and
+                  (.body | test("(^|\\n)(### |\\*\\*|# )?(question|search|質問|課題|調べ)[:：]"; "i"))
+                )) as $filtered
 
               | if ($filtered | length > 0) then
                   "## [PR #\($num)](\(.url)): \(.title)\n\n" +
