@@ -1,0 +1,79 @@
+name: Aggregate Learning Logs
+
+on:
+  push:
+    branches:
+      - "phase*"
+  pull_request:
+    branches:
+      - "phase*"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 5"
+
+jobs:
+  aggregate_job:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+      issues: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract conversation logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # 1. ヘッダーの初期化
+          echo "# 💡 学習記録・メンターフィードバック一覧" > LEARNING_LOG.md
+          echo "最終更新日: $(date +'%Y-%m-%d %H:%M:%S') (JST)" >> LEARNING_LOG.md
+          echo "このファイルは GitHub Actions により自動集計されています。" >> LEARNING_LOG.md
+          echo "" >> LEARNING_LOG.md
+
+          REPO="${{ github.repository }}"
+          MENTOR="iineineno03k"
+
+          # 2. 全てのPR番号を取得
+          PR_LIST=$(gh pr list --repo $REPO --state all --limit 100 --json number --jq '.[].number')
+
+          echo "--- 抽出開始 (Target: $REPO) ---"
+
+          for num in $PR_LIST; do
+            echo "Processing PR #$num..."
+
+            # 3. jqフィルタの堅牢化（型チェックの追加）
+            gh pr view "$num" --repo $REPO --json url,title,comments,reviews | \
+            jq -r --arg mentor "$MENTOR" --arg num "$num" '
+              # すべてのソース（通常コメント、レビューコメント、レビュー総評）を1つの配列にまとめる
+              ([
+                (.comments // []),
+                ([(.reviews // [])[].comments // []] | flatten),
+                ([.reviews // [] | .[] | select(.body != null and .body != "") | {body: .body, author: .author, createdAt: .createdAt}])
+              ] | flatten)
+
+              # フィルタリング
+              | map(select(
+                  # メンターの発言であること
+                  (.author.login == $mentor or .author.login == "unknown") and
+                  # bodyが文字列であり、かつ特定のキーワードで見出し形式になっていること
+                  (.body | type == "string") and
+                  (.body | test("(^|\\n)(### |\\*\\*|# )?(question|search|質問|課題|調べ)[:：]"; "i"))
+                )) as $filtered
+
+              | if ($filtered | length > 0) then
+                  "## [PR #\($num)](\(.url)): \(.title)\n\n" +
+                  ($filtered | map("### 💬 フィードバック\n\n> \(.body | gsub("\n"; "\n> "))\n\n---\n") | join("\n\n"))
+                else empty end
+            ' >> LEARNING_LOG.md
+          done
+
+      - name: Commit and Push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add LEARNING_LOG.md
+          git commit -m "docs: メンターのフィードバック(question/search)を更新 [skip ci]" || echo "No changes to commit"
+          git push origin HEAD
