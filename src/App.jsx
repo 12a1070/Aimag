@@ -7,6 +7,7 @@ import {
   PaintBucket,
   Share2,
   Copy,
+  X,
 } from "lucide-react";
 
 const TOOL_CONFIG = {
@@ -91,6 +92,7 @@ function App() {
   const [sharedUrl, setSharedUrl] = useState("");
   const [shareError, setShareError] = useState("");
   const [shareInfo, setShareInfo] = useState(null);
+  const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
 
   // 初回マウント時にキャンバスを初期化
   useEffect(() => {
@@ -196,6 +198,7 @@ function App() {
     setShareError("");
     setSharedUrl("");
     setShareInfo(null);
+    setIsSharePanelOpen(false);
     setIsUploading(true);
     let uploadCompleted = false;
 
@@ -220,6 +223,7 @@ function App() {
         createdAt: new Date().toISOString(),
         expiresAt: sharePayload.expiresAt,
       });
+      setIsSharePanelOpen(true);
       console.log("[share] upload success", {
         url: sharePayload.url,
         provider: sharePayload.provider,
@@ -229,6 +233,7 @@ function App() {
       const message =
         error instanceof Error ? error.message : "不明なエラーが発生しました。";
       setShareError(message);
+      setIsSharePanelOpen(true);
     } finally {
       if (!uploadCompleted) {
         setIsUploading(false);
@@ -318,9 +323,26 @@ function App() {
         </div>
       </div>
 
-      {(sharedUrl || shareError) && (
-        <div className="fixed bottom-24 left-1/2 z-50 w-[min(92vw,560px)] -translate-x-1/2 rounded-2xl bg-white/95 p-4 shadow-2xl landscape:bottom-6 md:bottom-8">
-          <p className="mb-2 text-sm font-semibold text-[#111827]">共有結果</p>
+      {(sharedUrl || shareError) && isSharePanelOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/35 p-3 landscape:items-end md:items-center"
+          onClick={() => setIsSharePanelOpen(false)}
+        >
+          <div
+            className="w-[min(92vw,560px)] rounded-2xl bg-white/95 p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-[#111827]">共有結果</p>
+              <button
+                type="button"
+                onClick={() => setIsSharePanelOpen(false)}
+                className="rounded-md p-1 text-[#111827] hover:bg-black/10"
+                aria-label="共有結果を閉じる"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           {sharedUrl && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-[#111827]">
@@ -381,6 +403,7 @@ function App() {
               </p>
             </div>
           )}
+        </div>
         </div>
       )}
     </div>
