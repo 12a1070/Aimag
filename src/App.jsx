@@ -93,6 +93,9 @@ function App() {
   const [shareError, setShareError] = useState("");
   const [shareInfo, setShareInfo] = useState(null);
   const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
+  const canUseNativeShare =
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function";
 
   // 初回マウント時にキャンバスを初期化
   useEffect(() => {
@@ -191,6 +194,29 @@ function App() {
     isDrawingRef.current = false;
   };
 
+  const shareViaSystem = useCallback(
+    async (url, source = "manual") => {
+      if (!canUseNativeShare || !url) return false;
+
+      try {
+        await navigator.share({
+          title: "Aimagで描いた絵",
+          text: `Aimagで描いた絵 ${url}`,
+          url,
+        });
+        console.log("[share] native share success", { source, url });
+        return true;
+      } catch (error) {
+        console.log("[share] native share skipped or failed", {
+          source,
+          error,
+        });
+        return false;
+      }
+    },
+    [canUseNativeShare],
+  );
+
   const handleShare = useCallback(async () => {
     const canvas = canvasRef.current;
     if (!canvas || isUploading) return;
@@ -224,6 +250,7 @@ function App() {
         expiresAt: sharePayload.expiresAt,
       });
       setIsSharePanelOpen(true);
+      await shareViaSystem(sharePayload.url, "auto-after-upload");
       console.log("[share] upload success", {
         url: sharePayload.url,
         provider: sharePayload.provider,
@@ -239,7 +266,7 @@ function App() {
         setIsUploading(false);
       }
     }
-  }, [isUploading]);
+  }, [isUploading, shareViaSystem]);
 
   const handleCopyUrl = useCallback(async () => {
     if (!sharedUrl) return;
@@ -250,6 +277,18 @@ function App() {
       console.log("[share] copy failed", { error });
     }
   }, [sharedUrl]);
+
+  const handleSlackShare = useCallback(async () => {
+    if (!sharedUrl) return;
+    const shared = await shareViaSystem(sharedUrl, "slack-button");
+    if (!shared) {
+      window.open(
+        `https://slack.com/share?text=${encodeURIComponent(`Aimagで描いた絵 ${sharedUrl}`)}`,
+        "_blank",
+        "noopener,noreferrer",
+      );
+    }
+  }, [shareViaSystem, sharedUrl]);
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
@@ -343,67 +382,79 @@ function App() {
                 <X className="h-4 w-4" />
               </button>
             </div>
-          {sharedUrl && (
-            <div className="space-y-2">
-              <p className="text-xs font-semibold text-[#111827]">
-                共有URL：{sharedUrl}
-              </p>
-              <div className="flex items-center gap-2">
-                <input
-                  readOnly
-                  value={sharedUrl}
-                  className="min-w-0 flex-1 rounded-md border border-black/20 bg-white px-3 py-2 text-xs text-[#111827]"
-                />
-                <button
-                  type="button"
-                  onClick={handleCopyUrl}
-                  className="inline-flex items-center gap-1 rounded-md bg-[#111827] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1f2937]"
-                >
-                  <Copy className="h-3.5 w-3.5" />
-                  URLをコピー
-                </button>
+            {sharedUrl && (
+              <div className="space-y-2">
+                <p className="text-xs font-semibold text-[#111827]">
+                  共有URL：{sharedUrl}
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    readOnly
+                    value={sharedUrl}
+                    className="min-w-0 flex-1 rounded-md border border-black/20 bg-white px-3 py-2 text-xs text-[#111827]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleCopyUrl}
+                    className="inline-flex items-center gap-1 rounded-md bg-[#111827] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1f2937]"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    URLをコピー
+                  </button>
+                </div>
+                <p className="text-xs text-[#374151]">
+                  このURLをコピーしてSlackやLINEに貼り付けてください。
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href={`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(sharedUrl)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md bg-[#06c755] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                  >
+                    LINEで共有
+                  </a>
+                  {canUseNativeShare ? (
+                    <button
+                      type="button"
+                      onClick={handleSlackShare}
+                      className="rounded-md bg-[#4a154b] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                    >
+                      Slackで共有
+                    </button>
+                  ) : (
+                    <a
+                      href={`https://slack.com/share?text=${encodeURIComponent(`Aimagで描いた絵 ${sharedUrl}`)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="rounded-md bg-[#4a154b] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                    >
+                      Slackで共有
+                    </a>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-[#374151]">
-                このURLをコピーしてSlackやLINEに貼り付けてください。
-              </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <a
-                  href={`https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(sharedUrl)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-md bg-[#06c755] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-                >
-                  LINEで共有
-                </a>
-                <a
-                  href={`https://slack.com/share?text=${encodeURIComponent(`Aimagで描いた絵 ${sharedUrl}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-md bg-[#4a154b] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-                >
-                  Slackで共有
-                </a>
+            )}
+            {shareError && (
+              <p className="text-xs font-medium text-red-600">{shareError}</p>
+            )}
+            {shareInfo && (
+              <div className="mt-2 space-y-1 text-[11px] text-[#374151]">
+                <p>
+                  共有方式: {shareInfo.mode === "link" ? "一時URL" : "端末共有"}
+                </p>
+                <p>
+                  共有時刻: {new Date(shareInfo.createdAt).toLocaleString()}
+                </p>
+                <p>
+                  有効期限:{" "}
+                  {shareInfo.expiresAt
+                    ? new Date(shareInfo.expiresAt).toLocaleString()
+                    : "URL共有なし（受信側アプリ管理）"}
+                </p>
               </div>
-            </div>
-          )}
-          {shareError && (
-            <p className="text-xs font-medium text-red-600">{shareError}</p>
-          )}
-          {shareInfo && (
-            <div className="mt-2 space-y-1 text-[11px] text-[#374151]">
-              <p>
-                共有方式: {shareInfo.mode === "link" ? "一時URL" : "端末共有"}
-              </p>
-              <p>共有時刻: {new Date(shareInfo.createdAt).toLocaleString()}</p>
-              <p>
-                有効期限:{" "}
-                {shareInfo.expiresAt
-                  ? new Date(shareInfo.expiresAt).toLocaleString()
-                  : "URL共有なし（受信側アプリ管理）"}
-              </p>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
         </div>
       )}
     </div>
