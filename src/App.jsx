@@ -94,8 +94,8 @@ function App() {
   const [shareInfo, setShareInfo] = useState(null);
   const [isSharePanelOpen, setIsSharePanelOpen] = useState(false);
   const canUseNativeShare =
-    typeof navigator !== "undefined" &&
-    typeof navigator.share === "function";
+    typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const slackShareUrl = `https://slack.com/share?url=${encodeURIComponent(sharedUrl)}&text=${encodeURIComponent("Aimagで描いた絵")}`;
 
   // 初回マウント時にキャンバスを初期化
   useEffect(() => {
@@ -250,7 +250,9 @@ function App() {
         expiresAt: sharePayload.expiresAt,
       });
       setIsSharePanelOpen(true);
-      await shareViaSystem(sharePayload.url, "auto-after-upload");
+      if (canUseNativeShare) {
+        await shareViaSystem(sharePayload.url, "auto-after-upload");
+      }
       console.log("[share] upload success", {
         url: sharePayload.url,
         provider: sharePayload.provider,
@@ -266,7 +268,7 @@ function App() {
         setIsUploading(false);
       }
     }
-  }, [isUploading, shareViaSystem]);
+  }, [canUseNativeShare, isUploading, shareViaSystem]);
 
   const handleCopyUrl = useCallback(async () => {
     if (!sharedUrl) return;
@@ -278,17 +280,10 @@ function App() {
     }
   }, [sharedUrl]);
 
-  const handleSlackShare = useCallback(async () => {
+  const handleSlackShare = useCallback(() => {
     if (!sharedUrl) return;
-    const shared = await shareViaSystem(sharedUrl, "slack-button");
-    if (!shared) {
-      window.open(
-        `https://slack.com/share?text=${encodeURIComponent(`Aimagで描いた絵 ${sharedUrl}`)}`,
-        "_blank",
-        "noopener,noreferrer",
-      );
-    }
-  }, [shareViaSystem, sharedUrl]);
+    window.open(slackShareUrl, "_blank", "noopener,noreferrer");
+  }, [sharedUrl, slackShareUrl]);
 
   return (
     <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
@@ -414,24 +409,13 @@ function App() {
                   >
                     LINEで共有
                   </a>
-                  {canUseNativeShare ? (
-                    <button
-                      type="button"
-                      onClick={handleSlackShare}
-                      className="rounded-md bg-[#4a154b] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-                    >
-                      Slackで共有
-                    </button>
-                  ) : (
-                    <a
-                      href={`https://slack.com/share?text=${encodeURIComponent(`Aimagで描いた絵 ${sharedUrl}`)}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="rounded-md bg-[#4a154b] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
-                    >
-                      Slackで共有
-                    </a>
-                  )}
+                  <button
+                    type="button"
+                    onClick={handleSlackShare}
+                    className="rounded-md bg-[#4a154b] px-3 py-2 text-xs font-semibold text-white hover:opacity-90"
+                  >
+                    Slackで共有
+                  </button>
                 </div>
               </div>
             )}
