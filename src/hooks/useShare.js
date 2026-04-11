@@ -13,6 +13,21 @@ function canvasToBlob(canvas) {
   });
 }
 
+/** 消しゴムで透明になったピクセルを共有時は白に見せる（オフスクリーンで白背景と合成） */
+function canvasToBlobWithWhiteBackground(sourceCanvas) {
+  const width = sourceCanvas.width;
+  const height = sourceCanvas.height;
+  const composite = document.createElement("canvas");
+  composite.width = width;
+  composite.height = height;
+  const ctx = composite.getContext("2d");
+  ctx.fillStyle = "#FFFFFF";
+  ctx.fillRect(0, 0, width, height);
+  ctx.globalCompositeOperation = "source-over";
+  ctx.drawImage(sourceCanvas, 0, 0);
+  return canvasToBlob(composite);
+}
+
 export function useShare(canvasRef) {
   const [isUploading, setIsUploading] = useState(false);
   const [sharedUrl, setSharedUrl] = useState("");
@@ -64,7 +79,7 @@ export function useShare(canvasRef) {
 
     let uploadCompleted = false;
     try {
-      const blob = await canvasToBlob(canvas);
+      const blob = await canvasToBlobWithWhiteBackground(canvas);
       const payload = await uploadImage(blob);
       uploadCompleted = true;
       setIsUploading(false);
