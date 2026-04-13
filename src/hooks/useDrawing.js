@@ -6,6 +6,8 @@ export function useDrawing() {
   const ctxRef = useRef(null);
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
+  const lastMidPointRef = useRef({ x: 0, y: 0 });
+  const rafRef = useRef(null);
 
   const [toolMode, setToolMode] = useState("pencil");
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
@@ -16,13 +18,13 @@ export function useDrawing() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const context = canvas.getContext("2d");
     if (!context) return;
     ctxRef.current = context;
 
-    if (canvas.width !== 3200 || canvas.height !== 1800) {
-      canvas.width = 3200;
-      canvas.height = 1800;
+    if (canvas.width !== 1618 || canvas.height !== 1000) {
+      canvas.width = 1618;
+      canvas.height = 1000;
       context.lineCap = "round";
       context.lineJoin = "round";
       context.fillStyle = "white";
@@ -79,6 +81,7 @@ export function useDrawing() {
 
       const point = getPointFromEvent(event);
       lastPointRef.current = point;
+      lastMidPointRef.current = point;
 
       context.beginPath();
       context.moveTo(point.x, point.y);
@@ -90,17 +93,31 @@ export function useDrawing() {
 
   const onPointerMove = useCallback(
     (event) => {
-      updateCursorPosition(event);
       const context = ctxRef.current;
-      if (!context || !isDrawingRef.current) return;
 
-      const point = getPointFromEvent(event);
-      const lastPoint = lastPointRef.current;
-      context.beginPath();
-      context.moveTo(lastPoint.x, lastPoint.y);
-      context.lineTo(point.x, point.y);
-      context.stroke();
-      lastPointRef.current = point;
+      if (context && isDrawingRef.current) {
+        const events = event.getCoalescedEvents?.() ?? [event];
+        for (const e of events) {
+          const point = getPointFromEvent(e);
+          const lastPoint = lastPointRef.current;
+          const midPoint = {
+            x: (lastPoint.x + point.x) / 2,
+            y: (lastPoint.y + point.y) / 2,
+          };
+          context.beginPath();
+          context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
+          context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
+          context.stroke();
+          lastMidPointRef.current = midPoint;
+          lastPointRef.current = point;
+        }
+      }
+
+      if (rafRef.current) return;
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        updateCursorPosition(event);
+      });
     },
     [getPointFromEvent, updateCursorPosition],
   );
