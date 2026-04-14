@@ -9,8 +9,8 @@ const DrawingCanvas = React.memo(function DrawingCanvas({
   brushSize,
 }) {
   return (
-    <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#777777] p-2 sm:p-6">
-      <div className="relative aspect-video max-h-full max-w-full bg-white shadow-2xl">
+    <main className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden bg-[#777777] p-2 landscape:p-1 sm:p-6 landscape:sm:p-2">
+      <div className="relative max-h-full max-w-full bg-white shadow-2xl" style={{ aspectRatio: "1618/1000" }}>
         <canvas
           ref={canvasRef}
           className="block h-full w-full cursor-none touch-none bg-white"
