@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { TOOL_CONFIG } from "../constants/toolConfig";
 
+const INITIAL_SIZES = {
+  pencil: TOOL_CONFIG.pencil.size,
+  eraser: TOOL_CONFIG.eraser.size,
+};
+
 export function useDrawing() {
   const canvasRef = useRef(null);
   const ctxRef = useRef(null);
@@ -10,9 +15,17 @@ export function useDrawing() {
   const rafRef = useRef(null);
 
   const [toolMode, setToolMode] = useState("pencil");
+  const [toolSizes, setToolSizes] = useState(INITIAL_SIZES);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isPointerInCanvas, setIsPointerInCanvas] = useState(false);
   const [cursorScale, setCursorScale] = useState(1);
+
+  const setBrushSize = useCallback(
+    (size) => {
+      setToolSizes((prev) => ({ ...prev, [toolMode]: size }));
+    },
+    [toolMode],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -63,10 +76,10 @@ export function useDrawing() {
     (context) => {
       const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
       context.globalCompositeOperation = tool.composite;
-      context.lineWidth = tool.size;
+      context.lineWidth = toolSizes[toolMode] ?? tool.size;
       if (tool.strokeStyle) context.strokeStyle = tool.strokeStyle;
     },
-    [toolMode],
+    [toolMode, toolSizes],
   );
 
   const onPointerDown = useCallback(
@@ -160,7 +173,8 @@ export function useDrawing() {
     cursorPos,
     cursorScale,
     isPointerInCanvas,
-    brushSize: (TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil).size,
+    brushSize: toolSizes[toolMode] ?? (TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil).size,
+    setBrushSize,
     canvasHandlers,
   };
 }

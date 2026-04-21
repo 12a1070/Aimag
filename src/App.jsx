@@ -1,3 +1,4 @@
+import BrushSizeSelector from "./components/BrushSizeSelector";
 import DrawingCanvas from "./components/DrawingCanvas";
 import SharePanel from "./components/SharePanel";
 import Toolbar from "./components/Toolbar";
@@ -10,7 +11,7 @@ function App() {
   const share = useShare(drawing.canvasRef);
 
   return (
-    <div className="flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
+    <div className="relative flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
       <DrawingCanvas
         canvasRef={drawing.canvasRef}
         canvasHandlers={drawing.canvasHandlers}
@@ -19,6 +20,15 @@ function App() {
         cursorScale={drawing.cursorScale}
         brushSize={drawing.brushSize}
       />
+      <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-28 landscape:items-start landscape:justify-end landscape:pb-0 landscape:pr-32 landscape:pt-4 md:items-start md:justify-end md:pb-0 md:pr-36 md:pt-4">
+        <div className="pointer-events-auto">
+          <BrushSizeSelector
+            size={drawing.brushSize}
+            onSizeChange={drawing.setBrushSize}
+            toolMode={drawing.toolMode}
+          />
+        </div>
+      </div>
       <Toolbar
         toolMode={drawing.toolMode}
         onSelectTool={drawing.setToolMode}
