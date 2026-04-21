@@ -48,35 +48,36 @@ const Toolbar = React.memo(function Toolbar({
   };
 
   return (
-    <aside className="relative flex h-24 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-2 py-1 landscape:h-full landscape:w-28 landscape:px-2 md:h-full md:w-32 md:px-4">
-
-      {/* サブメニュー: overflow-hidden を突き抜けるため fixed で配置 */}
-      {isSubMenuOpen && (
-        <div className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 flex flex-row gap-1 rounded-2xl bg-white p-1.5 shadow-lg landscape:bottom-auto landscape:left-auto landscape:top-1/2 landscape:right-28 landscape:translate-x-0 landscape:-translate-y-1/2 landscape:flex-col md:bottom-auto md:left-auto md:top-1/2 md:right-32 md:translate-x-0 md:-translate-y-1/2 md:flex-col">
-          <SubMenuButton
-            icon={<Minus />}
-            onClick={() => handleShapeSelect("line")}
-            isActive={toolMode === "line"}
-          />
-          <SubMenuButton
-            icon={<Square />}
-            onClick={() => handleShapeSelect("rect")}
-            isActive={toolMode === "rect"}
-          />
-          <SubMenuButton
-            icon={<Circle />}
-            onClick={() => handleShapeSelect("circle")}
-            isActive={toolMode === "circle"}
-          />
-        </div>
-      )}
-
+    <aside className="flex h-24 w-full shrink-0 items-center justify-center bg-[#D1D1D1] px-2 py-1 landscape:h-full landscape:w-28 landscape:px-2 md:h-full md:w-32 md:px-4">
       <div className="flex h-full w-full max-w-md items-center justify-around rounded-3xl bg-[#00FFAB] p-2 shadow-xl landscape:h-[90vh] landscape:flex-col landscape:justify-evenly md:h-[85vh] md:flex-col md:justify-evenly">
-        <ToolbarButton
-          icon={<Pencil />}
-          onClick={handlePencilClick}
-          isActive={isPencilGroupActive}
-        />
+
+        {/* ペンボタン基点のサブメニュー */}
+        <div className="relative">
+          <ToolbarButton
+            icon={<Pencil />}
+            onClick={handlePencilClick}
+            isActive={isPencilGroupActive}
+          />
+          {isSubMenuOpen && (
+            <div className="absolute bottom-full left-1/2 z-10 mb-1 flex -translate-x-1/2 flex-row gap-1 rounded-2xl bg-white p-1.5 shadow-lg landscape:bottom-auto landscape:left-auto landscape:right-full landscape:top-1/2 landscape:mb-0 landscape:mr-1 landscape:translate-x-0 landscape:-translate-y-1/2 landscape:flex-col md:bottom-auto md:left-auto md:right-full md:top-1/2 md:mb-0 md:mr-1 md:translate-x-0 md:-translate-y-1/2 md:flex-col">
+              <SubMenuButton
+                icon={<Minus />}
+                onClick={() => handleShapeSelect("line")}
+                isActive={toolMode === "line"}
+              />
+              <SubMenuButton
+                icon={<Square />}
+                onClick={() => handleShapeSelect("rect")}
+                isActive={toolMode === "rect"}
+              />
+              <SubMenuButton
+                icon={<Circle />}
+                onClick={() => handleShapeSelect("circle")}
+                isActive={toolMode === "circle"}
+              />
+            </div>
+          )}
+        </div>
 
         <ToolbarButton
           icon={<Eraser />}
