@@ -1,10 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TOOL_CONFIG } from "../constants/toolConfig";
+import { SHAPE_TOOLS, TOOL_CONFIG } from "../constants/toolConfig";
 
-const INITIAL_SIZES = {
-  pencil: TOOL_CONFIG.pencil.size,
-  eraser: TOOL_CONFIG.eraser.size,
-};
+const INITIAL_SIZES = Object.fromEntries(
+  Object.entries(TOOL_CONFIG).map(([k, v]) => [k, v.size]),
+);
 
 export function useDrawing() {
   const canvasRef = useRef(null);
@@ -12,6 +11,8 @@ export function useDrawing() {
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const lastMidPointRef = useRef({ x: 0, y: 0 });
+  const snapshotRef = useRef(null);
+  const startPointRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef(null);
 
   const [toolMode, setToolMode] = useState("pencil");
@@ -82,6 +83,27 @@ export function useDrawing() {
     [toolMode, toolSizes],
   );
 
+  const drawShape = useCallback(
+    (context, start, end) => {
+      context.beginPath();
+      if (toolMode === "line") {
+        context.moveTo(start.x, start.y);
+        context.lineTo(end.x, end.y);
+        context.stroke();
+      } else if (toolMode === "rect") {
+        context.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
+      } else if (toolMode === "circle") {
+        const rx = Math.abs(end.x - start.x) / 2;
+        const ry = Math.abs(end.y - start.y) / 2;
+        const cx = (start.x + end.x) / 2;
+        const cy = (start.y + end.y) / 2;
+        context.ellipse(cx, cy, Math.max(rx, 0.5), Math.max(ry, 0.5), 0, 0, Math.PI * 2);
+        context.stroke();
+      }
+    },
+    [toolMode],
+  );
+
   const onPointerDown = useCallback(
     (event) => {
       const canvas = canvasRef.current;
@@ -93,15 +115,20 @@ export function useDrawing() {
       isDrawingRef.current = true;
 
       const point = getPointFromEvent(event);
-      lastPointRef.current = point;
-      lastMidPointRef.current = point;
 
-      context.beginPath();
-      context.moveTo(point.x, point.y);
-      context.lineTo(point.x, point.y);
-      context.stroke();
+      if (SHAPE_TOOLS.has(toolMode)) {
+        startPointRef.current = point;
+        snapshotRef.current = context.getImageData(0, 0, canvas.width, canvas.height);
+      } else {
+        lastPointRef.current = point;
+        lastMidPointRef.current = point;
+        context.beginPath();
+        context.moveTo(point.x, point.y);
+        context.lineTo(point.x, point.y);
+        context.stroke();
+      }
     },
-    [applyToolToContext, getPointFromEvent],
+    [applyToolToContext, getPointFromEvent, toolMode],
   );
 
   const onPointerMove = useCallback(
@@ -109,20 +136,28 @@ export function useDrawing() {
       const context = ctxRef.current;
 
       if (context && isDrawingRef.current) {
-        const events = event.getCoalescedEvents?.() ?? [event];
-        for (const e of events) {
-          const point = getPointFromEvent(e);
-          const lastPoint = lastPointRef.current;
-          const midPoint = {
-            x: (lastPoint.x + point.x) / 2,
-            y: (lastPoint.y + point.y) / 2,
-          };
-          context.beginPath();
-          context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
-          context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
-          context.stroke();
-          lastMidPointRef.current = midPoint;
-          lastPointRef.current = point;
+        if (SHAPE_TOOLS.has(toolMode)) {
+          const point = getPointFromEvent(event);
+          if (snapshotRef.current) {
+            context.putImageData(snapshotRef.current, 0, 0);
+          }
+          drawShape(context, startPointRef.current, point);
+        } else {
+          const events = event.getCoalescedEvents?.() ?? [event];
+          for (const e of events) {
+            const point = getPointFromEvent(e);
+            const lastPoint = lastPointRef.current;
+            const midPoint = {
+              x: (lastPoint.x + point.x) / 2,
+              y: (lastPoint.y + point.y) / 2,
+            };
+            context.beginPath();
+            context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
+            context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
+            context.stroke();
+            lastMidPointRef.current = midPoint;
+            lastPointRef.current = point;
+          }
         }
       }
 
@@ -132,15 +167,29 @@ export function useDrawing() {
         updateCursorPosition(event);
       });
     },
-    [getPointFromEvent, updateCursorPosition],
+    [drawShape, getPointFromEvent, toolMode, updateCursorPosition],
   );
 
-  const onPointerUp = useCallback((event) => {
-    if (canvasRef.current && event.pointerId !== undefined) {
-      canvasRef.current.releasePointerCapture(event.pointerId);
-    }
-    isDrawingRef.current = false;
-  }, []);
+  const onPointerUp = useCallback(
+    (event) => {
+      if (canvasRef.current && event.pointerId !== undefined) {
+        canvasRef.current.releasePointerCapture(event.pointerId);
+      }
+
+      if (isDrawingRef.current && SHAPE_TOOLS.has(toolMode)) {
+        const context = ctxRef.current;
+        const canvas = canvasRef.current;
+        if (context && canvas && snapshotRef.current) {
+          context.putImageData(snapshotRef.current, 0, 0);
+          snapshotRef.current = null;
+          drawShape(context, startPointRef.current, getPointFromEvent(event));
+        }
+      }
+
+      isDrawingRef.current = false;
+    },
+    [drawShape, getPointFromEvent, toolMode],
+  );
 
   const onPointerEnter = useCallback(
     (event) => {
