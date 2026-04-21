@@ -35,8 +35,9 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
   const isEraser = toolMode === "eraser";
 
   return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-sm">
-      <div className="flex gap-1.5">
+    <div className="flex flex-row items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-sm landscape:flex-col landscape:px-3 landscape:py-4 md:flex-col md:px-3 md:py-4">
+      {/* プリセットボタン: スマホ=横並び / PC=縦並び */}
+      <div className="flex flex-row gap-1.5 landscape:flex-col md:flex-col">
         {PRESETS.map((p) => (
           <button
             key={p}
@@ -44,7 +45,7 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
             onClick={() => onSizeChange(p)}
             className={`h-8 w-10 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
               size === p
-                ? "scale-105 bg-black text-white shadow-md"
+                ? "scale-105 bg-[#00FFAB] text-black shadow-md"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
@@ -53,7 +54,8 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
         ))}
       </div>
 
-      <div className="h-8 w-px shrink-0 bg-gray-200" />
+      {/* 区切り: スマホ=縦線 / PC=横線 */}
+      <div className="h-8 w-px shrink-0 bg-gray-200 landscape:h-px landscape:w-full md:h-px md:w-full" />
 
       <div className="flex items-center gap-1">
         <input
@@ -69,14 +71,13 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
         <span className="text-xs text-gray-400">px</span>
       </div>
 
-      <div className="h-8 w-px shrink-0 bg-gray-200" />
+      {/* 区切り: スマホ=縦線 / PC=横線 */}
+      <div className="h-8 w-px shrink-0 bg-gray-200 landscape:h-px landscape:w-full md:h-px md:w-full" />
 
       <div className="flex h-[7.5rem] w-[7.5rem] shrink-0 items-center justify-center rounded-xl bg-gray-100">
         <div
           className={`rounded-full transition-all ${
-            isEraser
-              ? "border-2 border-gray-300 bg-white"
-              : "bg-gray-800"
+            isEraser ? "border-2 border-gray-300 bg-white" : "bg-gray-800"
           }`}
           style={{ width: previewDiameter, height: previewDiameter }}
         />

@@ -12,6 +12,14 @@ function App() {
 
   return (
     <div className="relative flex h-dvh w-screen flex-col overflow-hidden bg-[#E5E5E5] md:flex-row landscape:flex-row">
+      {/* スマホ: キャンバス上部に横方向 / PC: キャンバス左側に縦方向 */}
+      <div className="flex shrink-0 items-center justify-center bg-[#D1D1D1] px-2 py-2">
+        <BrushSizeSelector
+          size={drawing.brushSize}
+          onSizeChange={drawing.setBrushSize}
+          toolMode={drawing.toolMode}
+        />
+      </div>
       <DrawingCanvas
         canvasRef={drawing.canvasRef}
         canvasHandlers={drawing.canvasHandlers}
@@ -20,15 +28,6 @@ function App() {
         cursorScale={drawing.cursorScale}
         brushSize={drawing.brushSize}
       />
-      <div className="pointer-events-none absolute inset-0 flex items-end justify-center pb-28 landscape:items-start landscape:justify-end landscape:pb-0 landscape:pr-32 landscape:pt-4 md:items-start md:justify-end md:pb-0 md:pr-36 md:pt-4">
-        <div className="pointer-events-auto">
-          <BrushSizeSelector
-            size={drawing.brushSize}
-            onSizeChange={drawing.setBrushSize}
-            toolMode={drawing.toolMode}
-          />
-        </div>
-      </div>
       <Toolbar
         toolMode={drawing.toolMode}
         onSelectTool={drawing.setToolMode}
