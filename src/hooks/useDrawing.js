@@ -93,11 +93,8 @@ export function useDrawing() {
       } else if (toolMode === "rect") {
         context.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
       } else if (toolMode === "circle") {
-        const rx = Math.abs(end.x - start.x) / 2;
-        const ry = Math.abs(end.y - start.y) / 2;
-        const cx = (start.x + end.x) / 2;
-        const cy = (start.y + end.y) / 2;
-        context.ellipse(cx, cy, Math.max(rx, 0.5), Math.max(ry, 0.5), 0, 0, Math.PI * 2);
+        const r = Math.max(0.5, Math.hypot(end.x - start.x, end.y - start.y));
+        context.arc(start.x, start.y, r, 0, Math.PI * 2);
         context.stroke();
       }
     },
