@@ -3,6 +3,13 @@ import { Circle, Eraser, Layers, Minus, PaintBucket, Pencil, Share2, Square, Und
 import { PENCIL_GROUP } from "../constants/toolConfig";
 import ToolbarButton from "./ToolbarButton";
 
+const PENCIL_GROUP_ICONS = {
+  pencil: <Pencil />,
+  line:   <Minus />,
+  rect:   <Square />,
+  circle: <Circle />,
+};
+
 function SubMenuButton({ icon, onClick, isActive }) {
   return (
     <button
@@ -54,7 +61,7 @@ const Toolbar = React.memo(function Toolbar({
         {/* ペンボタン基点のサブメニュー */}
         <div className="relative">
           <ToolbarButton
-            icon={<Pencil />}
+            icon={PENCIL_GROUP_ICONS[toolMode] ?? <Pencil />}
             onClick={handlePencilClick}
             isActive={isPencilGroupActive}
           />
