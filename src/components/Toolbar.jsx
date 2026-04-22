@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Circle, Eraser, Layers, Minus, PaintBucket, Pencil, Share2, Square, Undo2 } from "lucide-react";
+import { Circle, Eraser, Layers, Minus, PaintBucket, Pencil, Share2, Square, Type, Undo2 } from "lucide-react";
 import { PENCIL_GROUP } from "../constants/toolConfig";
 import ToolbarButton from "./ToolbarButton";
 
@@ -90,6 +90,11 @@ const Toolbar = React.memo(function Toolbar({
           icon={<Eraser />}
           onClick={() => onSelectTool("eraser")}
           isActive={toolMode === "eraser"}
+        />
+        <ToolbarButton
+          icon={<Type />}
+          onClick={() => onSelectTool("text")}
+          isActive={toolMode === "text"}
         />
         <ToolbarButton icon={<Layers />} onClick={() => {}} />
         <ToolbarButton icon={<Undo2 />} onClick={() => {}} />
