@@ -1,16 +1,29 @@
-# React + Vite
+# Aimag
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+キャンバス上でフリーハンド描画・図形描画・テキスト注釈を組み合わせ、図解や資料を素早く作成できる Web アプリです。
 
-Currently, two official plugins are available:
+## 機能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **ブラシ / 消しゴム** — サイズをプリセット（2 / 5 / 10 / 20 px）または数値入力で調整。ツールごとにサイズを独立して保持
+- **図形描画** — 直線・四角形・円形をドラッグで正確に描画
+- **テキスト入力** — キャンバス上の任意の位置をクリックして注釈を追加
+- **共有** — 画像を URL として発行し、LINE で共有
 
-## React Compiler
+## データの扱いについて
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **描いた内容は保存されません。** キャンバスのデータはブラウザのメモリにのみ保持されるため、ページを閉じる・更新すると消えます
+- **共有 URL は 72 時間で期限切れ**になります。期限後は画像にアクセスできなくなります
 
-## Expanding the ESLint configuration
+## 技術スタック
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- React 19 / Vite
+- Tailwind CSS v4
+- Storybook 10
+
+## 開発環境のセットアップ
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm run storybook  # http://localhost:6006
+```
