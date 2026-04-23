@@ -1,9 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 export function useTextTool({ canvasRef, toolMode, canvasHandlers }) {
   const [textOverlay, setTextOverlay] = useState(null);
 
   const isText = toolMode === "text";
+
+  useEffect(() => {
+    if (!isText) setTextOverlay(null);
+  }, [isText]);
 
   const handleSubmit = useCallback(
     (text) => {
