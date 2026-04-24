@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-export function useTextTool({ canvasRef, toolMode, canvasHandlers }) {
+export function useTextTool({ canvasRef, toolMode, canvasHandlers, brushSize }) {
   const [textOverlay, setTextOverlay] = useState(null);
 
   const isText = toolMode === "text";
@@ -23,7 +23,7 @@ export function useTextTool({ canvasRef, toolMode, canvasHandlers }) {
       const x = (textOverlay.x - rect.left) * (canvas.width / rect.width);
       const y = (textOverlay.y - rect.top) * (canvas.height / rect.height);
 
-      const fontSize = 24;
+      const fontSize = Math.max(8, brushSize);
       const lineHeight = fontSize * 1.4;
       ctx.globalCompositeOperation = "source-over";
       ctx.font = `${fontSize}px sans-serif`;
@@ -34,7 +34,7 @@ export function useTextTool({ canvasRef, toolMode, canvasHandlers }) {
 
       setTextOverlay(null);
     },
-    [canvasRef, textOverlay],
+    [canvasRef, textOverlay, brushSize],
   );
 
   const handleCancel = useCallback(() => {

@@ -33,6 +33,7 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
 
   const previewDiameter = Math.max(2, Math.min(MAX_PREVIEW_PX, size));
   const isEraser = toolMode === "eraser";
+  const isText = toolMode === "text";
 
   return (
     <div className="flex flex-row items-center gap-3 rounded-2xl bg-white/90 px-4 py-3 shadow-lg backdrop-blur-sm landscape:flex-col landscape:px-3 landscape:py-4 md:flex-col md:px-3 md:py-4">
@@ -75,12 +76,21 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
       <div className="h-8 w-px shrink-0 bg-gray-200 landscape:h-px landscape:w-full md:h-px md:w-full" />
 
       <div className="flex h-[7.5rem] w-[7.5rem] shrink-0 items-center justify-center rounded-xl bg-gray-100">
-        <div
-          className={`rounded-full transition-all ${
-            isEraser ? "border-2 border-gray-300 bg-white" : "bg-gray-800"
-          }`}
-          style={{ width: previewDiameter, height: previewDiameter }}
-        />
+        {isText ? (
+          <span
+            className="select-none font-bold leading-none text-gray-800"
+            style={{ fontSize: Math.min(previewDiameter, 80) }}
+          >
+            A
+          </span>
+        ) : (
+          <div
+            className={`rounded-full transition-all ${
+              isEraser ? "border-2 border-gray-300 bg-white" : "bg-gray-800"
+            }`}
+            style={{ width: previewDiameter, height: previewDiameter }}
+          />
+        )}
       </div>
     </div>
   );

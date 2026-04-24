@@ -1,5 +1,8 @@
 import React, { useState } from "react";
 
+const OVERLAY_W = 284;
+const OVERLAY_H = 132;
+
 const TextInputOverlay = React.memo(function TextInputOverlay({
   position,
   onSubmit,
@@ -7,6 +10,11 @@ const TextInputOverlay = React.memo(function TextInputOverlay({
   defaultValue = "",
 }) {
   const [text, setText] = useState(defaultValue);
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const x = Math.max(8, Math.min(position.x, vw - OVERLAY_W - 8));
+  const y = Math.max(8, Math.min(position.y, vh - OVERLAY_H - 8));
 
   const handleKeyDown = (e) => {
     if (e.isComposing) return;
@@ -18,7 +26,7 @@ const TextInputOverlay = React.memo(function TextInputOverlay({
   };
 
   return (
-    <div style={{ position: "fixed", left: position.x, top: position.y }} className="rounded-2xl bg-white p-3 shadow-lg">
+    <div style={{ position: "fixed", left: x, top: y }} className="rounded-2xl bg-white p-3 shadow-lg">
       <textarea
         autoFocus
         value={text}

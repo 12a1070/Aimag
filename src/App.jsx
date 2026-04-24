@@ -15,6 +15,7 @@ function App() {
     canvasRef: drawing.canvasRef,
     toolMode: drawing.toolMode,
     canvasHandlers: drawing.canvasHandlers,
+    brushSize: drawing.brushSize,
   });
 
   return (
