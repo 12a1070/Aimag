@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Circle, Eraser, Layers, Minus, PaintBucket, Pencil, Share2, Square, Type, Undo2 } from "lucide-react";
 import { PENCIL_GROUP } from "../constants/toolConfig";
 import ToolbarButton from "./ToolbarButton";
@@ -33,13 +33,8 @@ const Toolbar = React.memo(function Toolbar({
 }) {
   const [isSubMenuOpen, setIsSubMenuOpen] = useState(initialSubMenuOpen);
 
-  useEffect(() => {
-    if (!PENCIL_GROUP.has(toolMode)) {
-      setIsSubMenuOpen(false);
-    }
-  }, [toolMode]);
-
   const isPencilGroupActive = PENCIL_GROUP.has(toolMode);
+  const effectiveSubMenuOpen = isPencilGroupActive && isSubMenuOpen;
 
   const handlePencilClick = () => {
     if (isPencilGroupActive) {
@@ -65,8 +60,8 @@ const Toolbar = React.memo(function Toolbar({
             onClick={handlePencilClick}
             isActive={isPencilGroupActive}
           />
-          {isSubMenuOpen && (
-            <div className="absolute bottom-full left-1/2 z-10 mb-1 flex -translate-x-1/2 flex-row gap-1 rounded-2xl bg-white p-1.5 shadow-lg landscape:bottom-auto landscape:left-auto landscape:right-full landscape:top-1/2 landscape:mb-0 landscape:mr-1 landscape:translate-x-0 landscape:-translate-y-1/2 landscape:flex-col md:bottom-auto md:left-auto md:right-full md:top-1/2 md:mb-0 md:mr-1 md:translate-x-0 md:-translate-y-1/2 md:flex-col">
+          {effectiveSubMenuOpen && (
+            <div className="absolute bottom-full left-0 z-10 mb-1 flex flex-row gap-1 rounded-2xl bg-white p-1.5 shadow-lg landscape:bottom-auto landscape:left-auto landscape:right-full landscape:top-1/2 landscape:mb-0 landscape:mr-1 landscape:-translate-y-1/2 landscape:flex-col md:bottom-auto md:left-auto md:right-full md:top-1/2 md:mb-0 md:mr-1 md:-translate-y-1/2 md:flex-col">
               <SubMenuButton
                 icon={<Minus />}
                 onClick={() => handleShapeSelect("line")}
