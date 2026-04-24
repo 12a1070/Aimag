@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SHAPE_TOOLS, TOOL_CONFIG } from "../constants/toolConfig";
 
+const shapeDrawers = {
+  line: (ctx, s, e) => { ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); },
+  rect: (ctx, s, e) => ctx.strokeRect(s.x, s.y, e.x - s.x, e.y - s.y),
+  circle: (ctx, s, e) => { const r = Math.max(0.5, Math.hypot(e.x - s.x, e.y - s.y)); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.stroke(); },
+};
+
 const INITIAL_SIZES = Object.fromEntries(
   Object.entries(TOOL_CONFIG).map(([k, v]) => [k, v.size]),
 );
@@ -86,17 +92,7 @@ export function useDrawing() {
   const drawShape = useCallback(
     (context, start, end) => {
       context.beginPath();
-      if (toolMode === "line") {
-        context.moveTo(start.x, start.y);
-        context.lineTo(end.x, end.y);
-        context.stroke();
-      } else if (toolMode === "rect") {
-        context.strokeRect(start.x, start.y, end.x - start.x, end.y - start.y);
-      } else if (toolMode === "circle") {
-        const r = Math.max(0.5, Math.hypot(end.x - start.x, end.y - start.y));
-        context.arc(start.x, start.y, r, 0, Math.PI * 2);
-        context.stroke();
-      }
+      shapeDrawers[toolMode]?.(context, start, end);
     },
     [toolMode],
   );
@@ -116,53 +112,49 @@ export function useDrawing() {
       if (SHAPE_TOOLS.has(toolMode)) {
         startPointRef.current = point;
         snapshotRef.current = context.getImageData(0, 0, canvas.width, canvas.height);
-      } else {
-        lastPointRef.current = point;
-        lastMidPointRef.current = point;
-        context.beginPath();
-        context.moveTo(point.x, point.y);
-        context.lineTo(point.x, point.y);
-        context.stroke();
+        return;
       }
+
+      lastPointRef.current = point;
+      lastMidPointRef.current = point;
+      context.beginPath();
+      context.moveTo(point.x, point.y);
+      context.lineTo(point.x, point.y);
+      context.stroke();
     },
     [applyToolToContext, getPointFromEvent, toolMode],
   );
 
   const onPointerMove = useCallback(
     (event) => {
-      const context = ctxRef.current;
-
-      if (context && isDrawingRef.current) {
-        if (SHAPE_TOOLS.has(toolMode)) {
-          const point = getPointFromEvent(event);
-          if (snapshotRef.current) {
-            context.putImageData(snapshotRef.current, 0, 0);
-          }
-          drawShape(context, startPointRef.current, point);
-        } else {
-          const events = event.getCoalescedEvents?.() ?? [event];
-          for (const e of events) {
-            const point = getPointFromEvent(e);
-            const lastPoint = lastPointRef.current;
-            const midPoint = {
-              x: (lastPoint.x + point.x) / 2,
-              y: (lastPoint.y + point.y) / 2,
-            };
-            context.beginPath();
-            context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
-            context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
-            context.stroke();
-            lastMidPointRef.current = midPoint;
-            lastPointRef.current = point;
-          }
-        }
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+          updateCursorPosition(event);
+        });
       }
 
-      if (rafRef.current) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        updateCursorPosition(event);
-      });
+      const context = ctxRef.current;
+      if (!context || !isDrawingRef.current) return;
+
+      if (SHAPE_TOOLS.has(toolMode)) {
+        const point = getPointFromEvent(event);
+        if (snapshotRef.current) context.putImageData(snapshotRef.current, 0, 0);
+        drawShape(context, startPointRef.current, point);
+        return;
+      }
+
+      for (const e of event.getCoalescedEvents?.() ?? [event]) {
+        const point = getPointFromEvent(e);
+        const lastPoint = lastPointRef.current;
+        const midPoint = { x: (lastPoint.x + point.x) / 2, y: (lastPoint.y + point.y) / 2 };
+        context.beginPath();
+        context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
+        context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
+        context.stroke();
+        lastMidPointRef.current = midPoint;
+        lastPointRef.current = point;
+      }
     },
     [drawShape, getPointFromEvent, toolMode, updateCursorPosition],
   );
