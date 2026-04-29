@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { TOOL_CONFIG } from "../constants/toolConfig";
 
 export function useTextTool({ canvasRef, toolMode, canvasHandlers, brushSize }) {
   const [textOverlay, setTextOverlay] = useState(null);
@@ -25,9 +26,9 @@ export function useTextTool({ canvasRef, toolMode, canvasHandlers, brushSize }) 
 
       const fontSize = Math.max(8, brushSize);
       const lineHeight = fontSize * 1.4;
-      ctx.globalCompositeOperation = "source-over";
-      ctx.font = `${fontSize}px sans-serif`;
-      ctx.fillStyle = "#111827";
+      ctx.globalCompositeOperation = TOOL_CONFIG.text.composite;
+      ctx.font = `${fontSize}px ${TOOL_CONFIG.text.fontFamily}`;
+      ctx.fillStyle = TOOL_CONFIG.text.strokeStyle;
       text.split("\n").forEach((line, i) => {
         ctx.fillText(line, x, y + i * lineHeight);
       });

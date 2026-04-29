@@ -4,7 +4,7 @@ export const TOOL_CONFIG = {
   line:   { size: 4,  composite: "source-over", strokeStyle: "#111827" },
   rect:   { size: 4,  composite: "source-over", strokeStyle: "#111827" },
   circle: { size: 4,  composite: "source-over", strokeStyle: "#111827" },
-  text:   { size: 16, composite: "source-over", strokeStyle: "#111827" },
+  text:   { size: 16, composite: "source-over", strokeStyle: "#111827", fontFamily: "sans-serif" },
 };
 
 export const SHAPE_TOOLS = new Set(["line", "rect", "circle"]);
