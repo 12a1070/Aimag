@@ -26,7 +26,10 @@ const TextInputOverlay = React.memo(function TextInputOverlay({
   };
 
   return (
-    <div style={{ position: "fixed", left: x, top: y }} className="rounded-2xl bg-white p-3 shadow-lg">
+    <div
+      style={{ position: "fixed", left: x, top: y }}
+      className="rounded-2xl bg-white p-3 shadow-lg"
+    >
       <textarea
         autoFocus
         value={text}

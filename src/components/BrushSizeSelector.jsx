@@ -72,10 +72,10 @@ const BrushSizeSelector = React.memo(function BrushSizeSelector({
         <span className="text-xs text-gray-400">px</span>
       </div>
 
-      {/* 区切り: スマホ=縦線 / PC=横線 */}
-      <div className="h-8 w-px shrink-0 bg-gray-200 landscape:h-px landscape:w-full md:h-px md:w-full" />
+      {/* 区切り: スマホ縦=非表示 / スマホ横=横線 / PC=横線 */}
+      <div className="hidden h-8 w-px shrink-0 bg-gray-200 landscape:block landscape:h-px landscape:w-full md:block md:h-px md:w-full" />
 
-      <div className="flex h-[7.5rem] w-[7.5rem] shrink-0 items-center justify-center rounded-xl bg-gray-100">
+      <div className="hidden landscape:flex landscape:h-16 landscape:w-16 md:flex md:h-[7.5rem] md:w-[7.5rem] shrink-0 items-center justify-center rounded-xl bg-gray-100">
         {isText ? (
           <span
             className="select-none font-bold leading-none text-gray-800"
