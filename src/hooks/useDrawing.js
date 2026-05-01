@@ -1,5 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { TOOL_CONFIG } from "../constants/toolConfig";
+import { SHAPE_TOOLS, TOOL_CONFIG } from "../constants/toolConfig";
+
+const shapeDrawers = {
+  line: (ctx, s, e) => { ctx.moveTo(s.x, s.y); ctx.lineTo(e.x, e.y); ctx.stroke(); },
+  rect: (ctx, s, e) => ctx.strokeRect(s.x, s.y, e.x - s.x, e.y - s.y),
+  circle: (ctx, s, e) => { const r = Math.max(0.5, Math.hypot(e.x - s.x, e.y - s.y)); ctx.arc(s.x, s.y, r, 0, Math.PI * 2); ctx.stroke(); },
+};
+
+const INITIAL_SIZES = Object.fromEntries(
+  Object.entries(TOOL_CONFIG).map(([k, v]) => [k, v.size]),
+);
 
 export function useDrawing() {
   const canvasRef = useRef(null);
@@ -7,12 +17,22 @@ export function useDrawing() {
   const isDrawingRef = useRef(false);
   const lastPointRef = useRef({ x: 0, y: 0 });
   const lastMidPointRef = useRef({ x: 0, y: 0 });
+  const snapshotRef = useRef(null);
+  const startPointRef = useRef({ x: 0, y: 0 });
   const rafRef = useRef(null);
 
   const [toolMode, setToolMode] = useState("pencil");
+  const [toolSizes, setToolSizes] = useState(INITIAL_SIZES);
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
   const [isPointerInCanvas, setIsPointerInCanvas] = useState(false);
   const [cursorScale, setCursorScale] = useState(1);
+
+  const setBrushSize = useCallback(
+    (size) => {
+      setToolSizes((prev) => ({ ...prev, [toolMode]: size }));
+    },
+    [toolMode],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -63,8 +83,16 @@ export function useDrawing() {
     (context) => {
       const tool = TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil;
       context.globalCompositeOperation = tool.composite;
-      context.lineWidth = tool.size;
+      context.lineWidth = toolSizes[toolMode] ?? tool.size;
       if (tool.strokeStyle) context.strokeStyle = tool.strokeStyle;
+    },
+    [toolMode, toolSizes],
+  );
+
+  const drawShape = useCallback(
+    (context, start, end) => {
+      context.beginPath();
+      shapeDrawers[toolMode]?.(context, start, end);
     },
     [toolMode],
   );
@@ -80,54 +108,77 @@ export function useDrawing() {
       isDrawingRef.current = true;
 
       const point = getPointFromEvent(event);
+
+      if (SHAPE_TOOLS.has(toolMode)) {
+        startPointRef.current = point;
+        snapshotRef.current = context.getImageData(0, 0, canvas.width, canvas.height);
+        return;
+      }
+
       lastPointRef.current = point;
       lastMidPointRef.current = point;
-
       context.beginPath();
       context.moveTo(point.x, point.y);
       context.lineTo(point.x, point.y);
       context.stroke();
     },
-    [applyToolToContext, getPointFromEvent],
+    [applyToolToContext, getPointFromEvent, toolMode],
   );
 
   const onPointerMove = useCallback(
     (event) => {
-      const context = ctxRef.current;
+      if (!rafRef.current) {
+        rafRef.current = requestAnimationFrame(() => {
+          rafRef.current = null;
+          updateCursorPosition(event);
+        });
+      }
 
-      if (context && isDrawingRef.current) {
-        const events = event.getCoalescedEvents?.() ?? [event];
-        for (const e of events) {
-          const point = getPointFromEvent(e);
-          const lastPoint = lastPointRef.current;
-          const midPoint = {
-            x: (lastPoint.x + point.x) / 2,
-            y: (lastPoint.y + point.y) / 2,
-          };
-          context.beginPath();
-          context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
-          context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
-          context.stroke();
-          lastMidPointRef.current = midPoint;
-          lastPointRef.current = point;
+      const context = ctxRef.current;
+      if (!context || !isDrawingRef.current) return;
+
+      if (SHAPE_TOOLS.has(toolMode)) {
+        const point = getPointFromEvent(event);
+        if (snapshotRef.current) context.putImageData(snapshotRef.current, 0, 0);
+        drawShape(context, startPointRef.current, point);
+        return;
+      }
+
+      for (const e of event.getCoalescedEvents?.() ?? [event]) {
+        const point = getPointFromEvent(e);
+        const lastPoint = lastPointRef.current;
+        const midPoint = { x: (lastPoint.x + point.x) / 2, y: (lastPoint.y + point.y) / 2 };
+        context.beginPath();
+        context.moveTo(lastMidPointRef.current.x, lastMidPointRef.current.y);
+        context.quadraticCurveTo(lastPoint.x, lastPoint.y, midPoint.x, midPoint.y);
+        context.stroke();
+        lastMidPointRef.current = midPoint;
+        lastPointRef.current = point;
+      }
+    },
+    [drawShape, getPointFromEvent, toolMode, updateCursorPosition],
+  );
+
+  const onPointerUp = useCallback(
+    (event) => {
+      if (canvasRef.current && event.pointerId !== undefined) {
+        canvasRef.current.releasePointerCapture(event.pointerId);
+      }
+
+      if (isDrawingRef.current && SHAPE_TOOLS.has(toolMode)) {
+        const context = ctxRef.current;
+        const canvas = canvasRef.current;
+        if (context && canvas && snapshotRef.current) {
+          context.putImageData(snapshotRef.current, 0, 0);
+          snapshotRef.current = null;
+          drawShape(context, startPointRef.current, getPointFromEvent(event));
         }
       }
 
-      if (rafRef.current) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        updateCursorPosition(event);
-      });
+      isDrawingRef.current = false;
     },
-    [getPointFromEvent, updateCursorPosition],
+    [drawShape, getPointFromEvent, toolMode],
   );
-
-  const onPointerUp = useCallback((event) => {
-    if (canvasRef.current && event.pointerId !== undefined) {
-      canvasRef.current.releasePointerCapture(event.pointerId);
-    }
-    isDrawingRef.current = false;
-  }, []);
 
   const onPointerEnter = useCallback(
     (event) => {
@@ -160,7 +211,8 @@ export function useDrawing() {
     cursorPos,
     cursorScale,
     isPointerInCanvas,
-    brushSize: (TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil).size,
+    brushSize: toolSizes[toolMode] ?? (TOOL_CONFIG[toolMode] ?? TOOL_CONFIG.pencil).size,
+    setBrushSize,
     canvasHandlers,
   };
 }
